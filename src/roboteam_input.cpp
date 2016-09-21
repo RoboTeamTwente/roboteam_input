@@ -33,9 +33,9 @@ void joyCallback(const sensor_msgs::Joy& msg) {
 
     std::string txt = "I heard a joy on joystick " + myJoy + "!";
     ROS_INFO(txt.c_str());
-    x_vel= msg.axes[speedaxis];
-    y_vel= msg.axes[directionaxis];
-    w_vel= msg.axes[rotationaxis];
+    x_vel= msg.axes[speedaxis]*2;
+    y_vel= msg.axes[directionaxis]*2;
+    w_vel= msg.axes[rotationaxis]*3;
 
     //for (int i = sizeof(msg.axes) - 1; i >= 0; i--) 
     //	ROS_INFO("axis %i, gives: %f",i, msg.axes[i]);
