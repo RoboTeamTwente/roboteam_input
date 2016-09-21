@@ -106,7 +106,7 @@ catkin_package(
 #  LIBRARIES roboteam_control
 #  CATKIN_DEPENDS roscpp std_msgs
 #  DEPENDS system_lib
-    CATKIN_DEPENDS roscpp std_msgs sensor_msgs message_runtime
+    CATKIN_DEPENDS roscpp std_msgs sensor_msgs message_runtime roboteam_msgs
 )
 
 ###########
