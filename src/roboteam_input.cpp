@@ -2,7 +2,7 @@
 
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
-#include "roboteam_robothub/robot_command.h"
+#include "roboteam_msgs/RobotCommand.h"
 
 /**
  * https://www.kernel.org/doc/Documentation/input/joystick-api.txt
@@ -10,7 +10,7 @@
 
 int speedaxis=1;
 int directionaxis=0;
-int rotationaxis=2;
+int rotationaxis=3;
 int idupdownbutton=5;
 
 
@@ -48,7 +48,7 @@ void joyCallback(const sensor_msgs::Joy& msg) {
 	}
 	previousIdUpDownState=msg.axes[idupdownbutton];
     }
-    roboteam_robothub::robot_command command;
+    roboteam_msgs::RobotCommand command;
 
     command.id = id;
     command.active = active;
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "roboteam_input");
 
     ros::NodeHandle n;
-    chatter_pub = n.advertise<roboteam_robothub::robot_command>("robotcommands", 1000);
+    chatter_pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 1000);
 
     if (!ros::param::has("~joy")) {
         ROS_INFO("Private parameter joy not set. Shutting down.");

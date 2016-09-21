@@ -25,6 +25,6 @@
     </node>
 
 	<node pkg="roboteam_input" type="roboteam_input" name="roboteam_input_1" output="screen">
-		<param name="joy" value="js1" />
+		<param name="joy" value="js0" />
 	</node>
 </launch>
