@@ -188,6 +188,12 @@ add_dependencies(roboteam_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXP
 ## Testing ##
 #############
 
+catkin_add_gtest(input_test 
+    test/main.cpp 
+	test/SimpleTest.cpp
+)
+target_link_libraries(input_test ${catkin_LIBRARIES})
+
 ## Add gtest based cpp test target and link libraries
 # catkin_add_gtest(${PROJECT_NAME}-test test/test_roboteam_control.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
