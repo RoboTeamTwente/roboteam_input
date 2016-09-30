@@ -119,7 +119,7 @@ add_definitions(-std=c++11)
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-  ${catkin_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS} src
 )
 
 ## Declare a C++ library
@@ -144,7 +144,8 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(roboteam_input src/roboteam_input.cpp)
+
+add_executable(roboteam_input src/joystick_input.cpp)
 target_link_libraries(roboteam_input ${catkin_LIBRARIES})
 add_dependencies(roboteam_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} roboteam_msgs_generate_messages_cpp)
 
