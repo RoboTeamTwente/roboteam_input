@@ -56,8 +56,8 @@ void joyCallback(const sensor_msgs::Joy& msg) {
     command.y_vel = y_vel;
     command.w_vel = w_vel;
     command.dribbler = dribbler;
-    command.kick_vel = kick_vel;
-    command.chip_vel = chip_vel;
+    command.kicker_vel = kick_vel;
+    command.chipper_vel = chip_vel;
 
     ROS_INFO_STREAM("command sent for robot: " << command.id);
 
