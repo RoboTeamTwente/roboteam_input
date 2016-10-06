@@ -23,8 +23,8 @@ void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
     command.y_vel = y_vel;
     command.w_vel = w_vel;
     command.dribbler = dribbler;
-    command.kick_vel = kick_vel;
-    command.chip_vel = chip_vel;
+    // command.kick_vel = kick_vel;
+    // command.chip_vel = chip_vel;
 
     chatter1_pub.publish(command);
 }
@@ -43,8 +43,8 @@ void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
     command.y_vel = y_vel;
     command.w_vel = w_vel;
     command.dribbler = dribbler;
-    command.kick_vel = kick_vel;
-    command.chip_vel = chip_vel;
+    // command.kick_vel = kick_vel;
+    // command.chip_vel = chip_vel;
 
     chatter2_pub.publish(command);
 }
