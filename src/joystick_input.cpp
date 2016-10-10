@@ -82,10 +82,8 @@ void Joy::loop() {
     }
 }
 
-Joy::Joy(int argc, char **argv) {
-    // n = nh;
-    ros::init(argc, argv, "roboteam_input");
-    ros::NodeHandle n;    
+Joy::Joy(ros::NodeHandle nh) {
+    n = nh;
     pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 1000);
     ros::param::get("/roboteam_input_1/joy1", myJoy1);
     ros::param::get("/roboteam_input_1/joy2", myJoy2);
@@ -100,6 +98,8 @@ Joy::~Joy() {
 }
 
 int main(int argc, char **argv) {
-    rtt::Joy joy(argc, argv);
+    ros::init(argc, argv, "roboteam_input");
+    ros::NodeHandle n;    
+    rtt::Joy joy(n);
     return 0;
 }

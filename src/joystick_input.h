@@ -9,7 +9,7 @@ namespace rtt{
 
 class Joy{
 public:
-	Joy(int argc, char **argv);
+	Joy(ros::NodeHandle n);
 	~Joy();
 private:
 	void joyCallback1(const sensor_msgs::Joy& msg);
