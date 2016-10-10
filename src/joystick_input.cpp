@@ -11,8 +11,8 @@ ros::Publisher chatter2_pub;
 
 void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
     ros::param::get("/roboteam_input_1/robot1", id);
-    x_vel= msg.axes[speedaxis]*2;
-    y_vel= msg.axes[directionaxis]*2;
+    x_vel= msg.axes[speedaxis];
+    y_vel= msg.axes[directionaxis];
     w_vel= msg.axes[rotationaxis]*3;
 
     roboteam_msgs::RobotCommand command;
@@ -23,16 +23,14 @@ void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
     command.y_vel = y_vel;
     command.w_vel = w_vel;
     command.dribbler = dribbler;
-    // command.kick_vel = kick_vel;
-    // command.chip_vel = chip_vel;
 
-    chatter1_pub.publish(command);
+    pub.publish(command);
 }
 
 void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
 	ros::param::get("/roboteam_input_1/robot2", id);
-    x_vel= msg.axes[speedaxis]*2;
-    y_vel= msg.axes[directionaxis]*2;
+    x_vel= msg.axes[speedaxis];
+    y_vel= msg.axes[directionaxis];
     w_vel= msg.axes[rotationaxis]*3;
 
     roboteam_msgs::RobotCommand command;
@@ -43,10 +41,8 @@ void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
     command.y_vel = y_vel;
     command.w_vel = w_vel;
     command.dribbler = dribbler;
-    // command.kick_vel = kick_vel;
-    // command.chip_vel = chip_vel;
 
-    chatter2_pub.publish(command);
+    pub.publish(command);
 }
 
 void Joy::loop() {
@@ -62,6 +58,7 @@ void Joy::loop() {
 	            ROS_INFO_STREAM("listening to topic " << myJoyNow1 << ", for joystick 1");
 	            sub1.shutdown();
 	            myJoy1 = myJoyNow1;
+                int a = 1;
 	            sub1 = n.subscribe(myJoy1, 1, &Joy::joyCallback1, this);
 	        }
         }
@@ -85,8 +82,11 @@ void Joy::loop() {
     }
 }
 
-Joy::Joy(ros::NodeHandle& nh) {
-    n = nh;
+Joy::Joy(int argc, char **argv) {
+    // n = nh;
+    ros::init(argc, argv, "roboteam_input");
+    ros::NodeHandle n;    
+    pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 1000);
     ros::param::get("/roboteam_input_1/joy1", myJoy1);
     ros::param::get("/roboteam_input_1/joy2", myJoy2);
     ROS_INFO("startup ok");
@@ -100,10 +100,6 @@ Joy::~Joy() {
 }
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "roboteam_input");
-    ros::NodeHandle n;    
-    rtt::chatter1_pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 1000);
-    rtt::chatter2_pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands2", 1000);
-    rtt::Joy joy(n);
+    rtt::Joy joy(argc, argv);
     return 0;
 }
