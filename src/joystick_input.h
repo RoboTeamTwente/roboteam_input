@@ -29,7 +29,7 @@ private:
 	bool active=true;
 	float x_vel;
 	float y_vel;
-	float w_vel;
+	float w;
 	bool dribbler=false;
 	float kick_vel=0.0;
 	float chip_vel=0.0;

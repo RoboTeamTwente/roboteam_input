@@ -13,7 +13,7 @@ void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
     ros::param::get("/roboteam_input_1/robot1", id);
     x_vel= msg.axes[speedaxis];
     y_vel= msg.axes[directionaxis];
-    w_vel= msg.axes[rotationaxis]*3;
+    w = msg.axes[rotationaxis]*3;
 
     roboteam_msgs::RobotCommand command;
 
@@ -21,7 +21,7 @@ void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
     command.active = active;
     command.x_vel = x_vel;
     command.y_vel = y_vel;
-    command.w_vel = w_vel;
+    command.w = w;
     command.dribbler = dribbler;
 
     pub.publish(command);
@@ -31,7 +31,7 @@ void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
 	ros::param::get("/roboteam_input_1/robot2", id);
     x_vel= msg.axes[speedaxis];
     y_vel= msg.axes[directionaxis];
-    w_vel= msg.axes[rotationaxis]*3;
+    w = msg.axes[rotationaxis]*3;
 
     roboteam_msgs::RobotCommand command;
 
@@ -39,7 +39,7 @@ void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
     command.active = active;
     command.x_vel = x_vel;
     command.y_vel = y_vel;
-    command.w_vel = w_vel;
+    command.w = w;
     command.dribbler = dribbler;
 
     pub.publish(command);
