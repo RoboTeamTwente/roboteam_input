@@ -147,7 +147,7 @@ include_directories(
 
 add_executable(roboteam_input src/joystick_input.cpp)
 target_link_libraries(roboteam_input ${catkin_LIBRARIES})
-add_dependencies(roboteam_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} roboteam_msgs_generate_messages_cpp)
+add_dependencies(roboteam_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 #############
 ## Install ##
