@@ -5,7 +5,7 @@
 #include "roboteam_msgs/RobotCommand.h"
 #include <typeinfo>
 
-namespace rtt{
+namespace rtt {
 
 ros::Publisher chatter1_pub;
 ros::Publisher chatter2_pub;
@@ -95,7 +95,6 @@ void Joy::loop() {
 	            ROS_INFO_STREAM("listening to topic " << myJoyNow1 << ", for joystick 1");
 	            sub1.shutdown();
 	            myJoy1 = myJoyNow1;
-                int a = 1;
 	            sub1 = n.subscribe(myJoy1, 1, &Joy::joyCallback1, this);
 	        }
         }
@@ -114,6 +113,7 @@ void Joy::loop() {
 	            sub2 = n.subscribe(myJoy2, 1, &Joy::joyCallback2, this);
 	        }
         }
+
         
         std::string myJoyNow3;
         ros::param::get("/roboteam_input_1/joy3", myJoyNow3);
@@ -147,7 +147,6 @@ void Joy::loop() {
         
         if(firstassignment){firstassignment = false;}
 
-        ros::spinOnce();
     }
 }
 
@@ -166,7 +165,7 @@ Joy::~Joy() {
     n.shutdown();
 }
 
-}
+} // rtt
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "roboteam_input");
