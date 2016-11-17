@@ -35,7 +35,6 @@ void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
     command.dribbler = dribbler;
     command.kicker = kicker_input > 0;
     command.kicker_vel = kick_vel;
-	ROS_INFO("callback1");
     pub.publish(command);
 }
 
@@ -62,7 +61,6 @@ void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
     command.dribbler = dribbler;
     command.kicker = kicker_input > 0;
     command.kicker_vel = kick_vel;
-	ROS_INFO("callback2");
     pub.publish(command);
 }
 
@@ -89,7 +87,6 @@ void Joy::joyCallback3(const sensor_msgs::Joy& msg) {
     command.dribbler = dribbler;
     command.kicker = kicker_input > 0;
     command.kicker_vel = kick_vel;
-	ROS_INFO("callback3");
     pub.publish(command);
 }
 
@@ -116,7 +113,6 @@ void Joy::joyCallback4(const sensor_msgs::Joy& msg) {
     command.dribbler = dribbler;
     command.kicker = kicker_input > 0;
     command.kicker_vel = kick_vel;
-	ROS_INFO("callback4");
     pub.publish(command);
 }
 
