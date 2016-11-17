@@ -29,9 +29,9 @@ private:
 	ros::NodeHandle n;
 	int speedaxis=1;
 	int directionaxis=0;
-	int rotationaxis=2;
-	int dribbleraxis=14;
-    int kickeraxis=15;
+	int rotationaxis=3;
+	int dribbleraxis=4;
+    int kickeraxis=5;
 	int idupdownbutton=5;
 	int id=0;
 	bool active=true;

@@ -16,11 +16,11 @@ void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
     ros::param::get("/roboteam_input_1/robot1", id);
     x_vel= pow(msg.axes[speedaxis], 3) * 3;
     y_vel= pow(msg.axes[directionaxis], 3) * 3;
-    w = pow(msg.axes[rotationaxis], 3) * 5;
+    w = pow(msg.axes[2], 3) * 5;
 	//ROS_INFO(typeid(msg.axes[dribbleraxis]).name());
     roboteam_msgs::RobotCommand command;
-	float dribbler_input = -(msg.axes[dribbleraxis] - 1) /2;
-    float kicker_input = -(msg.axes[kickeraxis] - 1) /2;
+    float dribbler_input = msg.buttons[10];
+    float kicker_input = msg.buttons[11];
 
     dribbler = dribbler_input > 0;
     if (kicker_input > 0) {
@@ -46,8 +46,8 @@ void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
     w = pow(msg.axes[rotationaxis], 3) * 5;
 	//ROS_INFO(typeid(msg.axes[dribbleraxis]).name());
     roboteam_msgs::RobotCommand command;
-	float dribbler_input = -(msg.axes[dribbleraxis] - 1) /2;
-    float kicker_input = -(msg.axes[kickeraxis] - 1) /2;
+	float dribbler_input = msg.buttons[dribbleraxis];
+    float kicker_input = msg.buttons[kickeraxis];
 
     dribbler = dribbler_input > 0;
     if (kicker_input > 0) {
@@ -73,8 +73,8 @@ void Joy::joyCallback3(const sensor_msgs::Joy& msg) {
     w = pow(msg.axes[rotationaxis], 3) * 5;
 	//ROS_INFO(typeid(msg.axes[dribbleraxis]).name());
     roboteam_msgs::RobotCommand command;
-	float dribbler_input = -(msg.axes[dribbleraxis] - 1) /2;
-    float kicker_input = -(msg.axes[kickeraxis] - 1) /2;
+    float dribbler_input = msg.buttons[dribbleraxis];
+    float kicker_input = msg.buttons[kickeraxis];
 
     dribbler = dribbler_input > 0;
     if (kicker_input > 0) {
@@ -100,8 +100,8 @@ void Joy::joyCallback4(const sensor_msgs::Joy& msg) {
     w = pow(msg.axes[rotationaxis], 3) * 5;
 	//ROS_INFO(typeid(msg.axes[dribbleraxis]).name());
     roboteam_msgs::RobotCommand command;
-	float dribbler_input = -(msg.axes[dribbleraxis] - 1) /2;
-    float kicker_input = -(msg.axes[kickeraxis] - 1) /2;
+    float dribbler_input = msg.buttons[dribbleraxis];
+    float kicker_input = msg.buttons[kickeraxis];
 
     dribbler = dribbler_input > 0;
     if (kicker_input > 0) {
@@ -180,7 +180,7 @@ void Joy::loop() {
 	            ROS_INFO_STREAM("listening to topic " << myJoyNow4 << ", for joystick 4");
 	            sub4.shutdown();
 	            myJoy4 = myJoyNow4;
-	            sub4 = n.subscribe(myJoy2, 10, &Joy::joyCallback4, this);
+	            sub4 = n.subscribe(myJoy4, 10, &Joy::joyCallback4, this);
 	        }
         }
 
