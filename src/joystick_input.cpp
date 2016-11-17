@@ -1,4 +1,6 @@
 #include <string>
+#include <cmath>
+
 #include "joystick_input.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
@@ -12,29 +14,45 @@ ros::Publisher chatter2_pub;
 
 void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
     ros::param::get("/roboteam_input_1/robot1", id);
-    x_vel= msg.axes[speedaxis];
-    y_vel= msg.axes[directionaxis];
-    w = msg.axes[rotationaxis]*3;
+    x_vel= pow(msg.axes[speedaxis], 3) * 3;
+    y_vel= pow(msg.axes[directionaxis], 3) * 3;
+    w = pow(msg.axes[rotationaxis], 3) * 5;
 	//ROS_INFO(typeid(msg.axes[dribbleraxis]).name());
     roboteam_msgs::RobotCommand command;
-	ROS_INFO("dribbler: %f",msg.axes[dribbleraxis]);
+	float dribbler_input = -(msg.axes[dribbleraxis] - 1) /2;
+    float kicker_input = -(msg.axes[kickeraxis] - 1) /2;
+
+    dribbler = dribbler_input > 0;
+    if (kicker_input > 0) {
+        kick_vel = 8.0;
+    }
+
     command.id = id;
     command.active = active;
     command.x_vel = x_vel;
     command.y_vel = y_vel;
     command.w = w;
     command.dribbler = dribbler;
+    command.kicker = kicker_input > 0;
+    command.kicker_vel = kick_vel;
 	ROS_INFO("callback1");
     pub.publish(command);
 }
 
 void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
 	ros::param::get("/roboteam_input_1/robot2", id);
-    x_vel= msg.axes[speedaxis];
-    y_vel= msg.axes[directionaxis];
-    w = msg.axes[rotationaxis]*3;
-
+    x_vel= pow(msg.axes[speedaxis], 3) * 3;
+    y_vel= pow(msg.axes[directionaxis], 3) * 3;
+    w = pow(msg.axes[rotationaxis], 3) * 5;
+	//ROS_INFO(typeid(msg.axes[dribbleraxis]).name());
     roboteam_msgs::RobotCommand command;
+	float dribbler_input = -(msg.axes[dribbleraxis] - 1) /2;
+    float kicker_input = -(msg.axes[kickeraxis] - 1) /2;
+
+    dribbler = dribbler_input > 0;
+    if (kicker_input > 0) {
+        kick_vel = 8.0;
+    }
 
     command.id = id;
     command.active = active;
@@ -42,17 +60,26 @@ void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
     command.y_vel = y_vel;
     command.w = w;
     command.dribbler = dribbler;
+    command.kicker = kicker_input > 0;
+    command.kicker_vel = kick_vel;
 	ROS_INFO("callback2");
     pub.publish(command);
 }
 
 void Joy::joyCallback3(const sensor_msgs::Joy& msg) {
 	ros::param::get("/roboteam_input_1/robot3", id);
-    x_vel= msg.axes[speedaxis];
-    y_vel= msg.axes[directionaxis];
-    w = msg.axes[rotationaxis]*3;
-
+    x_vel= pow(msg.axes[speedaxis], 3) * 3;
+    y_vel= pow(msg.axes[directionaxis], 3) * 3;
+    w = pow(msg.axes[rotationaxis], 3) * 5;
+	//ROS_INFO(typeid(msg.axes[dribbleraxis]).name());
     roboteam_msgs::RobotCommand command;
+	float dribbler_input = -(msg.axes[dribbleraxis] - 1) /2;
+    float kicker_input = -(msg.axes[kickeraxis] - 1) /2;
+
+    dribbler = dribbler_input > 0;
+    if (kicker_input > 0) {
+        kick_vel = 8.0;
+    }
 
     command.id = id;
     command.active = active;
@@ -60,17 +87,26 @@ void Joy::joyCallback3(const sensor_msgs::Joy& msg) {
     command.y_vel = y_vel;
     command.w = w;
     command.dribbler = dribbler;
+    command.kicker = kicker_input > 0;
+    command.kicker_vel = kick_vel;
 	ROS_INFO("callback3");
     pub.publish(command);
 }
 
 void Joy::joyCallback4(const sensor_msgs::Joy& msg) {
 	ros::param::get("/roboteam_input_1/robot4", id);
-    x_vel= msg.axes[speedaxis];
-    y_vel= msg.axes[directionaxis];
-    w = msg.axes[rotationaxis]*3;
-
+    x_vel= pow(msg.axes[speedaxis], 3) * 3;
+    y_vel= pow(msg.axes[directionaxis], 3) * 3;
+    w = pow(msg.axes[rotationaxis], 3) * 5;
+	//ROS_INFO(typeid(msg.axes[dribbleraxis]).name());
     roboteam_msgs::RobotCommand command;
+	float dribbler_input = -(msg.axes[dribbleraxis] - 1) /2;
+    float kicker_input = -(msg.axes[kickeraxis] - 1) /2;
+
+    dribbler = dribbler_input > 0;
+    if (kicker_input > 0) {
+        kick_vel = 8.0;
+    }
 
     command.id = id;
     command.active = active;
@@ -78,12 +114,15 @@ void Joy::joyCallback4(const sensor_msgs::Joy& msg) {
     command.y_vel = y_vel;
     command.w = w;
     command.dribbler = dribbler;
+    command.kicker = kicker_input > 0;
+    command.kicker_vel = kick_vel;
 	ROS_INFO("callback4");
     pub.publish(command);
 }
 
 void Joy::loop() {
     while (ros::ok()) {
+
         std::string myJoyNow1;
         ros::param::get("/roboteam_input_1/joy1", myJoyNow1);
         if (myJoyNow1 != myJoy1) {
@@ -153,10 +192,7 @@ void Joy::loop() {
 Joy::Joy(ros::NodeHandle nh) {
     n = nh;
     pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 1000);
-    ros::param::get("/roboteam_input_1/joy1", myJoy1);
-    ros::param::get("/roboteam_input_1/joy2", myJoy2);
-    ros::param::get("/roboteam_input_1/joy3", myJoy3);
-    ros::param::get("/roboteam_input_1/joy4", myJoy4);
+
     ROS_INFO("startup ok");
     Joy::loop();
 }

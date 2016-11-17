@@ -30,7 +30,8 @@ private:
 	int speedaxis=1;
 	int directionaxis=0;
 	int rotationaxis=2;
-	int dribbleraxis=12;
+	int dribbleraxis=14;
+    int kickeraxis=15;
 	int idupdownbutton=5;
 	int id=0;
 	bool active=true;
