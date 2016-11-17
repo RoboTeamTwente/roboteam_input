@@ -1,5 +1,10 @@
 <launch>
 
+    <node pkg="joy" type="joy_node" name="js0" >
+        <remap from="joy" to="js0" />
+        <param name="dev" value="/dev/input/js0" />
+    </node>
+
     <node pkg="joy" type="joy_node" name="js1" >
         <remap from="joy" to="js1" />
         <param name="dev" value="/dev/input/js1" />
@@ -9,26 +14,21 @@
         <remap from="joy" to="js2" />
         <param name="dev" value="/dev/input/js2" />
     </node>
-    
+
     <node pkg="joy" type="joy_node" name="js3" >
         <remap from="joy" to="js3" />
         <param name="dev" value="/dev/input/js3" />
     </node>
-    
-    <node pkg="joy" type="joy_node" name="js4" >
-        <remap from="joy" to="js4" />
-        <param name="dev" value="/dev/input/js4" />
-    </node>
-    
+
 	<node pkg="roboteam_input" type="roboteam_input" name="roboteam_input_1" output="screen">
-		<param name="joy1" value="js1" />
-		<param name="robot1" value="1" />
-		<param name="joy2" value="js2" />
-		<param name="robot2" value="2" />
-		<param name="joy3" value="js3" />
-		<param name="robot3" value="3" />
-		<param name="joy4" value="js4" />
-		<param name="robot4" value="4" />
+		<param name="joy1" value="/js0" />
+		<param name="robot1" value="0" />
+		<param name="joy2" value="/js1" />
+		<param name="robot2" value="1" />
+		<param name="joy3" value="/js2" />
+		<param name="robot3" value="2" />
+		<param name="joy4" value="/js3" />
+		<param name="robot4" value="3" />
 	</node>
 
 </launch>

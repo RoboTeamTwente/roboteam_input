@@ -40,8 +40,6 @@ private:
 	bool dribbler=false;
 	float kick_vel=0.0;
 	float chip_vel=0.0;
-	
-	bool firstassignment=true;
 };
 
 }
