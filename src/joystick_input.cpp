@@ -13,7 +13,7 @@ ros::Publisher chatter1_pub;
 ros::Publisher chatter2_pub;
 
 void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
-    ros::param::get("/roboteam_input_1/robot1", id);
+    ros::param::get("roboteam_input_1/robot1", id);
     x_vel= pow(msg.axes[speedaxis], 3) * 3;
     y_vel= pow(msg.axes[directionaxis], 3) * 3;
     w = pow(msg.axes[2], 3) * 5;
@@ -39,7 +39,7 @@ void Joy::joyCallback1(const sensor_msgs::Joy& msg) {
 }
 
 void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
-	ros::param::get("/roboteam_input_1/robot2", id);
+	ros::param::get("roboteam_input_1/robot2", id);
     x_vel= pow(msg.axes[speedaxis], 3) * 3;
     y_vel= pow(msg.axes[directionaxis], 3) * 3;
     w = pow(msg.axes[rotationaxis], 3) * 5;
@@ -65,7 +65,7 @@ void Joy::joyCallback2(const sensor_msgs::Joy& msg) {
 }
 
 void Joy::joyCallback3(const sensor_msgs::Joy& msg) {
-	ros::param::get("/roboteam_input_1/robot3", id);
+	ros::param::get("roboteam_input_1/robot3", id);
     x_vel= pow(msg.axes[speedaxis], 3) * 3;
     y_vel= pow(msg.axes[directionaxis], 3) * 3;
     w = pow(msg.axes[rotationaxis], 3) * 5;
@@ -91,7 +91,7 @@ void Joy::joyCallback3(const sensor_msgs::Joy& msg) {
 }
 
 void Joy::joyCallback4(const sensor_msgs::Joy& msg) {
-	ros::param::get("/roboteam_input_1/robot4", id);
+	ros::param::get("roboteam_input_1/robot4", id);
     x_vel= pow(msg.axes[speedaxis], 3) * 3;
     y_vel= pow(msg.axes[directionaxis], 3) * 3;
     w = pow(msg.axes[rotationaxis], 3) * 5;
@@ -120,7 +120,7 @@ void Joy::loop() {
     while (ros::ok()) {
 
         std::string myJoyNow1;
-        ros::param::get("/roboteam_input_1/joy1", myJoyNow1);
+        ros::param::get("roboteam_input_1/joy1", myJoyNow1);
         if (myJoyNow1 != myJoy1) {
         	if (myJoyNow1 == "none") {
         		ROS_INFO_STREAM("stopped listening for joystick 1");
@@ -135,7 +135,7 @@ void Joy::loop() {
         }
 
         std::string myJoyNow2;
-        ros::param::get("/roboteam_input_1/joy2", myJoyNow2);
+        ros::param::get("roboteam_input_1/joy2", myJoyNow2);
         if (myJoyNow2 != myJoy2) {
             if (myJoyNow2 == "none") {
         		ROS_INFO_STREAM("stopped listening for joystick 2");
@@ -151,7 +151,7 @@ void Joy::loop() {
 
 
         std::string myJoyNow3;
-        ros::param::get("/roboteam_input_1/joy3", myJoyNow3);
+        ros::param::get("roboteam_input_1/joy3", myJoyNow3);
         if (myJoyNow3 != myJoy3) {
             if (myJoyNow3 == "none") {
         		ROS_INFO_STREAM("stopped listening for joystick 3");
@@ -166,7 +166,7 @@ void Joy::loop() {
         }
 
         std::string myJoyNow4;
-        ros::param::get("/roboteam_input_1/joy4", myJoyNow4);
+        ros::param::get("roboteam_input_1/joy4", myJoyNow4);
         if (myJoyNow4 != myJoy4) {
             if (myJoyNow4 == "none") {
         		ROS_INFO_STREAM("stopped listening for joystick 4");
