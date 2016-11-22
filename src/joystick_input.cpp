@@ -28,12 +28,20 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
             3, // rotationAxis
             4, // dribblerAxis
             5 // kickerAxis
-        }}, {"playstation", {
+        }},
+        {"playstation", {
             1, // speedAxis
             0, // directionAxis
             2, // rotationAxis
             10, // dribblerAxis
             11 // kickerAxis
+        }},
+        {"gioteck", {
+            1, // speedAxis
+            0, // directionAxis
+            2, // rotationAxis
+            4, // dribblerAxis
+            5 // kickerAxis
         }}
     }
 };
@@ -42,7 +50,7 @@ std::array<boost::optional<sensor_msgs::Joy>, NUM_CONTROLLERS> joyMsgs;
 
 void receiveJoyMsg(int inputNum, const sensor_msgs::JoyConstPtr& msg) {
     // Only store the newest messages
-    joyMsgs[inputNum] = *msg;   
+    joyMsgs[inputNum] = *msg;
 }
 
 roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
@@ -85,7 +93,7 @@ int main(int argc, char **argv) {
 
     // Make sure there are only "none's" in the array
     joyMsgs.fill(boost::none);
-    
+
     // For each input, construct a subscriber and store it in this vector
     // If we'd want to switch between inpus based on some topic, this vector
     // would have to be made global, and subscribers would have to be deleted
@@ -106,12 +114,12 @@ int main(int argc, char **argv) {
     }
 
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 1000);
-    
+
     // TODO: Right now the roboteam_input's input names (js0, js1) are hardcoded
     // in the launch file. they should probably also be changeable through an event/topic
     // However, the joy & joy_node nodes are fixed, so not sure if this is possible
     // without writing our own joynode code.
-    
+
     // Flush received messages every 1/30th second
     ros::Rate fps30(30);
 
@@ -131,7 +139,7 @@ int main(int argc, char **argv) {
         }
 
         fps30.sleep();
-        
+
         ros::spinOnce();
     }
 
