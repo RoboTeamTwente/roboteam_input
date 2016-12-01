@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(roboteam_input)
 
+# Needed for the documentation generator.
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -147,7 +150,7 @@ include_directories(
 
 add_executable(roboteam_input src/joystick_input.cpp)
 target_link_libraries(roboteam_input ${catkin_LIBRARIES})
-add_dependencies(roboteam_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} roboteam_msgs_generate_messages_cpp)
+add_dependencies(roboteam_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 #############
 ## Install ##

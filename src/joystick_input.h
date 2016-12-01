@@ -14,16 +14,24 @@ public:
 private:
 	void joyCallback1(const sensor_msgs::Joy& msg);
 	void joyCallback2(const sensor_msgs::Joy& msg);
+	void joyCallback3(const sensor_msgs::Joy& msg);
+	void joyCallback4(const sensor_msgs::Joy& msg);
 	void loop();
 	ros::Subscriber sub1;
 	ros::Subscriber sub2;
+	ros::Subscriber sub3;
+	ros::Subscriber sub4;
 	ros::Publisher pub;
 	std::string myJoy1;
 	std::string myJoy2;
+	std::string myJoy3;
+	std::string myJoy4;
 	ros::NodeHandle n;
 	int speedaxis=1;
 	int directionaxis=0;
-	int rotationaxis=2;
+	int rotationaxis=3;
+	int dribbleraxis=4;
+    int kickeraxis=5;
 	int idupdownbutton=5;
 	int id=0;
 	bool active=true;
