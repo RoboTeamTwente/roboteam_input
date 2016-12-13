@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   roboteam_msgs # for message definition
+  roboteam_utils
 )
 
 ## System dependencies are found with CMake's conventions
@@ -109,7 +110,13 @@ catkin_package(
 #  LIBRARIES roboteam_control
 #  CATKIN_DEPENDS roscpp std_msgs
 #  DEPENDS system_lib
-    CATKIN_DEPENDS roscpp std_msgs sensor_msgs message_runtime roboteam_msgs
+    CATKIN_DEPENDS
+    roscpp
+    std_msgs
+    sensor_msgs
+    message_runtime
+    roboteam_msgs
+    roboteam_utils
 )
 
 ###########
@@ -191,8 +198,8 @@ add_dependencies(roboteam_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXP
 ## Testing ##
 #############
 
-catkin_add_gtest(input_test 
-    test/main.cpp 
+catkin_add_gtest(input_test
+    test/main.cpp
 	test/SimpleTest.cpp
 )
 target_link_libraries(input_test ${catkin_LIBRARIES})
