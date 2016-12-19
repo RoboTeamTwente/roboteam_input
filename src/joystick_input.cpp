@@ -69,9 +69,12 @@ roboteam_utils::Vector2 worldToRobotFrame(roboteam_utils::Vector2 requiredv, dou
 	return robotRequiredv;
 }
 
-roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
+void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
+    roboteam_msgs::World world = lastWorld::get();
+    GoToPos goToPos;
+
     const std::string group = "~input" + std::to_string(inputNum);
 
     // Get the joystick type
@@ -88,37 +91,38 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
         pow(msg.axes[joystickMap.speedAxis], 3) * 3
     );
 
-    // Convert target speed to be relative to the robot.
-    float orientation = lastWorld.us.at(ROBOT_ID).angle;
-    target_speed = worldToRobotFrame(target_speed, orientation);
+    roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
+    roboteam_utils::Vector2 posTarget = myPos + target_speed;
 
+    auto bb = std::make_shared<bt::Blackboard>();
+    bb->SetDouble("xGoal", posTarget);
+    bb->SetDouble("yGoal", posTarget);
+    bb->SetDouble("wGoal", 2);
+    bb->SetInt("ROBOT_ID", ROBOT_ID);
+    bb->SetBool("endPoint", true);
+    bb->SetBool("dribbler", false);
+    GoToPos goToPos("", bb);
+    goToPos.Update();
+
+    // Convert target speed to be relative to the robot.
+    // float orientation = world.us.at(ROBOT_ID).angle;
+    // speedCommand = worldToRobotFrame(speedCommand, orientation);
 
     // Construct the robot command
-    roboteam_msgs::RobotCommand command;
-    command.id = ROBOT_ID;
-    command.active = true;
-    command.x_vel= target_speed.x;
-    command.y_vel= target_speed.y;
-    command.w = pow(msg.axes[joystickMap.rotationAxis], 3) * 5;
-    command.dribbler = msg.buttons[joystickMap.dribblerAxis] > 0;
-    command.kicker = msg.buttons[joystickMap.kickerAxis] > 0;
-    if (command.kicker > 0) {
-        command.kicker_vel = 8.0;
-    }
+    // roboteam_msgs::RobotCommand command;
+    // command.id = ROBOT_ID;
+    // command.active = true;
+    // command.x_vel= speedCommand.x;
+    // command.y_vel= speedCommand.y;
+    // command.w = pow(msg.axes[joystickMap.rotationAxis], 3) * 5;
+    // command.dribbler = msg.buttons[joystickMap.dribblerAxis] > 0;
+    // command.kicker = msg.buttons[joystickMap.kickerAxis] > 0;
+    // if (command.kicker > 0) {
+    //     command.kicker_vel = 8.0;
+    // }
 
-    return command;
+    // return command;
 }
-
-// void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
-//     bb1->SetDouble("xGoal");
-//     bb1->SetDouble("yGoal");
-//     bb1->SetDouble("angleGoal");
-//     bb1->SetInt("ROBOT_ID");
-//     bb1->SetBool("endPoint");
-//     bb1->SetBool("dribbler");
-
-//     goToPos.Update();
-// }
 
 } // rtt
 
@@ -160,10 +164,6 @@ int main(int argc, char **argv) {
 
     // Flush received messages every 1/30th second
     ros::Rate fps30(30);
-
-
-    
-
 
     while (ros::ok()) {
         if (lastWorld.us.size() > 0) {
