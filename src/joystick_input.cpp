@@ -110,9 +110,6 @@ void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
     roboteam_utils::Vector2 posTarget = myPos + target_speed;
 
-    ROS_INFO_STREAM("target_speed: " << target_speed.x << " " << target_speed.y);
-    ROS_INFO_STREAM("posTarget: " << posTarget.x << " " << posTarget.y);
-
     std::shared_ptr<bt::Blackboard> bb = std::make_shared<bt::Blackboard>();
     bb->SetDouble("xGoal", posTarget.x);
     bb->SetDouble("yGoal", posTarget.y);
@@ -122,25 +119,6 @@ void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     bb->SetBool("dribbler", false);
     GoToPos goToPos("", bb);
     goToPos.Update();
-
-    // Convert target speed to be relative to the robot.
-    // float orientation = world.us.at(ROBOT_ID).angle;
-    // speedCommand = worldToRobotFrame(speedCommand, orientation);
-
-    // Construct the robot command
-    // roboteam_msgs::RobotCommand command;
-    // command.id = ROBOT_ID;
-    // command.active = true;
-    // command.x_vel= speedCommand.x;
-    // command.y_vel= speedCommand.y;
-    // command.w = pow(msg.axes[joystickMap.rotationAxis], 3) * 5;
-    // command.dribbler = msg.buttons[joystickMap.dribblerAxis] > 0;
-    // command.kicker = msg.buttons[joystickMap.kickerAxis] > 0;
-    // if (command.kicker > 0) {
-    //     command.kicker_vel = 8.0;
-    // }
-
-    // return command;
 }
 
 } // rtt
