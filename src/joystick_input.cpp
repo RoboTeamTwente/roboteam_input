@@ -1,6 +1,7 @@
 #include <string>
 #include <cmath>
 #include <boost/optional.hpp>
+#include <map>
 
 #include "roboteam_tactics/utils/LastWorld.h"
 
@@ -39,8 +40,8 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
         //     5 // kickerAxis
         // }},
         {"playstation", {
-            1, // yAxis
-            0, // xAxis
+            0, // yAxis
+            1, // xAxis
             2, // rotationXAxis
             3, // rotationYAxis
             10, // dribblerAxis
@@ -70,6 +71,8 @@ roboteam_utils::Vector2 worldToRobotFrame(roboteam_utils::Vector2 requiredv, dou
 	return robotRequiredv;
 }
 
+std::map<int, double> lastAngles;
+
 void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
@@ -87,22 +90,33 @@ void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     ros::param::get(group + "/robot", ROBOT_ID);
 
     roboteam_utils::Vector2 target_speed = roboteam_utils::Vector2(
-        pow(msg.axes[joystickMap.xAxis], 3) * 3,
-        -pow(msg.axes[joystickMap.yAxis], 3) * 3
+        -pow(msg.axes[joystickMap.xAxis], 3) * 10,
+        pow(msg.axes[joystickMap.yAxis], 3) * 10
     );
 
-    double targetAngle = roboteam_utils::Vector2(
-        pow(msg.axes[joystickMap.rotationXAxis], 3),
-        -pow(msg.axes[joystickMap.rotationYAxis], 3)
-    ).angle();
+    roboteam_utils::Vector2 dirVector = roboteam_utils::Vector2(
+        -pow(msg.axes[joystickMap.rotationXAxis], 3) * 5,
+        pow(msg.axes[joystickMap.rotationYAxis], 3) * 5
+    );
+
+    double targetAngle;
+    if (dirVector.length() > 0.8) {
+        targetAngle = dirVector.angle();
+        lastAngles[ROBOT_ID] = targetAngle;
+    } else {
+        targetAngle = lastAngles[ROBOT_ID];
+    }
 
     roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
     roboteam_utils::Vector2 posTarget = myPos + target_speed;
 
+    ROS_INFO_STREAM("target_speed: " << target_speed.x << " " << target_speed.y);
+    ROS_INFO_STREAM("posTarget: " << posTarget.x << " " << posTarget.y);
+
     std::shared_ptr<bt::Blackboard> bb = std::make_shared<bt::Blackboard>();
     bb->SetDouble("xGoal", posTarget.x);
     bb->SetDouble("yGoal", posTarget.y);
-    bb->SetDouble("wGoal", targetAngle);
+    bb->SetDouble("angleGoal", targetAngle);
     bb->SetInt("ROBOT_ID", ROBOT_ID);
     bb->SetBool("endPoint", true);
     bb->SetBool("dribbler", false);
@@ -164,6 +178,7 @@ int main(int argc, char **argv) {
 
     // Create world & geom callbacks
     std::cout << "Waiting for first world_state...\n";
+    rtt::GlobalPublisher<roboteam_msgs::RobotCommand> globalRobotCommandPublisher(rtt::TOPIC_COMMANDS);
     rtt::WorldAndGeomCallbackCreator cb;
     rtt::LastWorld::wait_for_first_messages();
 
