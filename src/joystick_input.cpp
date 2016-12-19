@@ -2,6 +2,8 @@
 #include <cmath>
 #include <boost/optional.hpp>
 
+#include "roboteam_tactics/utils/LastWorld.h"
+
 #include "joystick_input.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
@@ -92,6 +94,8 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     float orientation = lastWorld.us.at(ROBOT_ID).angle;
     target_speed = worldToRobotFrame(target_speed, orientation);
 
+    // Stel in
+    // AvoidRobot.update()
 
     // Construct the robot command
     roboteam_msgs::RobotCommand command;
@@ -141,6 +145,11 @@ int main(int argc, char **argv) {
 
     auto world_sub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
+
+    // Create world & geom callbacks
+    std::cout << "Waiting for first world_state...\n";
+    rtt::WorldAndGeomCallbackCreator cb;
+    rtt::LastWorld::wait_for_first_messages();
 
     // TODO: Right now the roboteam_input's input names (js0, js1) are hardcoded
     // in the launch file. they should probably also be changeable through an event/topic
