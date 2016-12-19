@@ -170,10 +170,6 @@ int main(int argc, char **argv) {
     // Flush received messages every 1/30th second
     ros::Rate fps30(30);
 
-
-    
-
-
     while (ros::ok()) {
         if (lastWorld.us.size() > 0) {
             // For every controller...
