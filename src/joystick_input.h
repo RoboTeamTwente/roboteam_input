@@ -5,6 +5,8 @@
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
 
+
+
 namespace rtt{
 
 class Joy{
@@ -41,6 +43,7 @@ private:
 	bool dribbler=false;
 	float kick_vel=0.0;
 	float chip_vel=0.0;
+	// auto bb1 = std::make_shared<bt::Blackboard>();
 };
 
 }
