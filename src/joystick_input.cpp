@@ -2,6 +2,8 @@
 #include <cmath>
 #include <boost/optional.hpp>
 
+#include "roboteam_tactics/utils/LastWorld.h"
+
 #include "joystick_input.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
@@ -11,12 +13,16 @@
 #include <typeinfo>
 #include <cmath>
 
+#include "roboteam_tactics/skills/GoToPos.h"
+#include "roboteam_tactics/Parts.h"
+
 namespace rtt {
 
 struct JoystickMap {
-    int speedAxis;
-    int directionAxis;
-    int rotationAxis;
+    int xAxis;
+    int yAxis;
+    int rotationXAxis;
+    int rotationYAxis;
     int dribblerAxis;
     int kickerAxis;
 } ;
@@ -25,37 +31,32 @@ const int NUM_CONTROLLERS = 4;
 
 const std::map<std::string, JoystickMap> joystickTypeMap = {
     {
-        {"xbox", {
-            1, // speedAxis
-            0, // directionAxis
-            3, // rotationAxis
-            4, // dribblerAxis
-            5 // kickerAxis
-        }},
+        // {"xbox", {
+        //     1, // speedAxis
+        //     0, // directionAxis
+        //     3, // rotationAxis
+        //     4, // dribblerAxis
+        //     5 // kickerAxis
+        // }},
         {"playstation", {
-            1, // speedAxis
-            0, // directionAxis
-            2, // rotationAxis
+            1, // yAxis
+            0, // xAxis
+            2, // rotationXAxis
+            3, // rotationYAxis
             10, // dribblerAxis
             11 // kickerAxis
         }},
-        {"gioteck", {
-            1, // speedAxis
-            0, // directionAxis
-            2, // rotationAxis
-            4, // dribblerAxis
-            5 // kickerAxis
-        }}
+        // {"gioteck", {
+        //     1, // speedAxis
+        //     0, // directionAxis
+        //     2, // rotationAxis
+        //     4, // dribblerAxis
+        //     5 // kickerAxis
+        // }}
     }
 };
 
 std::array<boost::optional<sensor_msgs::Joy>, NUM_CONTROLLERS> joyMsgs;
-
-roboteam_msgs::World lastWorld;
-
-void callback_world_state(const roboteam_msgs::World world) {
-    lastWorld = world;
-}
 
 void receiveJoyMsg(int inputNum, const sensor_msgs::JoyConstPtr& msg) {
     // Only store the newest messages
@@ -72,8 +73,7 @@ roboteam_utils::Vector2 worldToRobotFrame(roboteam_utils::Vector2 requiredv, dou
 void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
-    roboteam_msgs::World world = lastWorld::get();
-    GoToPos goToPos;
+    roboteam_msgs::World world = LastWorld::get();
 
     const std::string group = "~input" + std::to_string(inputNum);
 
@@ -87,17 +87,22 @@ void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     ros::param::get(group + "/robot", ROBOT_ID);
 
     roboteam_utils::Vector2 target_speed = roboteam_utils::Vector2(
-        -pow(msg.axes[joystickMap.directionAxis], 3) * 3,
-        pow(msg.axes[joystickMap.speedAxis], 3) * 3
+        pow(msg.axes[joystickMap.xAxis], 3) * 3,
+        -pow(msg.axes[joystickMap.yAxis], 3) * 3
     );
+
+    double targetAngle = roboteam_utils::Vector2(
+        pow(msg.axes[joystickMap.rotationXAxis], 3),
+        -pow(msg.axes[joystickMap.rotationYAxis], 3)
+    ).angle();
 
     roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
     roboteam_utils::Vector2 posTarget = myPos + target_speed;
 
-    auto bb = std::make_shared<bt::Blackboard>();
-    bb->SetDouble("xGoal", posTarget);
-    bb->SetDouble("yGoal", posTarget);
-    bb->SetDouble("wGoal", 2);
+    std::shared_ptr<bt::Blackboard> bb = std::make_shared<bt::Blackboard>();
+    bb->SetDouble("xGoal", posTarget.x);
+    bb->SetDouble("yGoal", posTarget.y);
+    bb->SetDouble("wGoal", targetAngle);
     bb->SetInt("ROBOT_ID", ROBOT_ID);
     bb->SetBool("endPoint", true);
     bb->SetBool("dribbler", false);
@@ -154,8 +159,13 @@ int main(int argc, char **argv) {
         subscribers.push_back(std::move(subscriberHeap));
     }
 
-    auto world_sub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
+    // auto world_sub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
+
+    // Create world & geom callbacks
+    std::cout << "Waiting for first world_state...\n";
+    rtt::WorldAndGeomCallbackCreator cb;
+    rtt::LastWorld::wait_for_first_messages();
 
     // TODO: Right now the roboteam_input's input names (js0, js1) are hardcoded
     // in the launch file. they should probably also be changeable through an event/topic
@@ -166,21 +176,21 @@ int main(int argc, char **argv) {
     ros::Rate fps30(30);
 
     while (ros::ok()) {
-        if (lastWorld.us.size() > 0) {
+        // if (lastWorld.us.size() > 0) {
             // For every controller...
             for (int i = 0; i < NUM_CONTROLLERS; ++i) {
                 // If a message is present
                 if (joyMsgs[i]) {
                     // Make a command out of it
-                    auto command = makeRobotCommand(i, *joyMsgs[i]);
+                    sendRobotCommand(i, *joyMsgs[i]);
                     // Send it
-                    pub.publish(command);
+                    // pub.publish(command);
 
                     // Reset the element in the array
                     joyMsgs[i] = boost::none;
                 }
             }
-        }
+        // }
 
         fps30.sleep();
 
