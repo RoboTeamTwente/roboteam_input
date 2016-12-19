@@ -75,7 +75,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     const std::string group = "~input" + std::to_string(inputNum);
 
     // Get the joystick type
-    std::string joyType = "xbox";
+    std::string joyType = "playstation";
     ros::param::get(group + "/joyType", joyType);
     const JoystickMap &joystickMap = joystickTypeMap.at(joyType);
 
@@ -108,6 +108,17 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
 
     return command;
 }
+
+// void sendRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
+//     bb1->SetDouble("xGoal");
+//     bb1->SetDouble("yGoal");
+//     bb1->SetDouble("angleGoal");
+//     bb1->SetInt("ROBOT_ID");
+//     bb1->SetBool("endPoint");
+//     bb1->SetBool("dribbler");
+
+//     goToPos.Update();
+// }
 
 } // rtt
 
@@ -149,6 +160,9 @@ int main(int argc, char **argv) {
 
     // Flush received messages every 1/30th second
     ros::Rate fps30(30);
+
+
+    
 
 
     while (ros::ok()) {
