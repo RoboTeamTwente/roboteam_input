@@ -127,6 +127,16 @@ T get_val(const std::vector<T> & values, size_t index) {
     return T(0);
 }
 
+double speed_value(const double input) {
+    double speed_value;
+    if (input < 0.8) {
+        speed_value = 0.1 * input;
+    } else {
+        speed_value = 9 * input - 9;
+    }
+    return speed_value;
+}
+
 roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
@@ -144,26 +154,47 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     ros::param::get(group + "/robot", ROBOT_ID);
 
     roboteam_utils::Vector2 target_speed = roboteam_utils::Vector2(
-        -pow(get_val(msg.axes, joystickMap.xAxis), 3) * 10,
-        pow(get_val(msg.axes, joystickMap.yAxis), 3) * 10
+        -get_val(msg.axes, joystickMap.xAxis),
+        get_val(msg.axes, joystickMap.yAxis)
     );
-    
-    roboteam_utils::Vector2 dirVector = roboteam_utils::Vector2(
-        -get_val(msg.axes, joystickMap.rotationXAxis),
-        get_val(msg.axes, joystickMap.rotationYAxis)
-    );
+
+    if (target_speed.length() < 0.9) {
+        target_speed = target_speed.scale(0.3);
+    } else {
+        target_speed = (target_speed - target_speed.scale((0.9 - 0.9*0.3)/target_speed.length())).scale(2);
+    }
+
+    if (inputNum == 0) {
+        ROS_INFO_STREAM("target_speed: " << target_speed.x << " " << target_speed.y);
+    }
+
+
+        
+    // roboteam_utils::Vector2 dirVector = roboteam_utils::Vector2(
+    //     -get_val(msg.axes, joystickMap.rotationXAxis),
+    //     get_val(msg.axes, joystickMap.rotationYAxis)
+    // );
 
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
-    if (dirVector.length() > 0.8) {
-        targetAngle = dirVector.angle();
-        lastAngles[ROBOT_ID] = targetAngle;
-    } else {
-        targetAngle = lastAngles[ROBOT_ID];
-    }
+    // if (dirVector.length() > 0.8) {
+    //     targetAngle = dirVector.angle();
+    //     lastAngles[ROBOT_ID] = targetAngle;
+    // } else {
+    //     targetAngle = lastAngles[ROBOT_ID];
+    // }
 
     roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
     roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
+
+    roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
+    roboteam_utils::Vector2 ballPos(world.ball.pos);
+    double distanceToBall = (ballPos - myPos).length();
+    if (distanceToBall < 1) {
+        requiredSpeedWF = requiredSpeedWF.scale(distanceToBall + 0.2);
+    }
+    targetAngle = (ballPos - myPos).angle(); 
+
     double requiredRotSpeed = rotationController(targetAngle - myAngle);
 
     roboteam_msgs::RobotCommand command;
