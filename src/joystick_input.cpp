@@ -46,8 +46,8 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
         {"gioteck", {
             0, // yAxis
             1, // xAxis
-            3, // rotationXAxis
-            4, // rotationYAxis
+            2, // rotationXAxis
+            3, // rotationYAxis
             4, // dribblerAxis
             5 // kickerAxis
         }}
@@ -91,7 +91,7 @@ roboteam_utils::Vector2 positionController(roboteam_utils::Vector2 posError) {
 
 double rotationController(double angleError) {
     double pGainRot = 6.0;
-    double maxRotSpeed = 10.0;
+    double maxRotSpeed = 7.0;
 
     angleError = cleanAngle(angleError);
     double requiredRotSpeed = angleError * pGainRot;
@@ -148,10 +148,15 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
         pow(get_val(msg.axes, joystickMap.yAxis), 3) * 10
     );
 
+    
     roboteam_utils::Vector2 dirVector = roboteam_utils::Vector2(
         -get_val(msg.axes, joystickMap.rotationXAxis),
         get_val(msg.axes, joystickMap.rotationYAxis)
     );
+
+    if (inputNum == 0) {
+        ROS_INFO_STREAM("target_speed: " << target_speed.x << " " << target_speed.y << " dirVector: " << dirVector.x << " " << dirVector.y);
+    }
 
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
@@ -163,17 +168,19 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     }
 
     roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
-    requiredSpeed = worldToRobotFrame(requiredSpeed, myAngle);
+    roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
     double requiredRotSpeed = rotationController(targetAngle - myAngle);
 
-    // ROS_INFO_STREAM("x: " << msg.axes[joystickMap.rotationXAxis] << " y: " << msg.axes[joystickMap.rotationYAxis]);
     if (inputNum == 0) {
-            ROS_INFO_STREAM("requiredSpeed: " << requiredSpeed.x << " " << requiredSpeed.y << " targetAngle: " << targetAngle);
+        // ROS_INFO_STREAM("requiredSpeed: " << requiredSpeed.x << " " << requiredSpeed.y << " targetAngle: " << targetAngle);
+        // ROS_INFO_STREAM("dribbler: " << get_val(msg.buttons, joystickMap.dribblerAxis) << " kicker: " << get_val(msg.buttons, joystickMap.kickerAxis));
     }
 
+
     roboteam_msgs::RobotCommand command;
-    command.x_vel = requiredSpeed.x;
-    command.y_vel = requiredSpeed.y;
+    command.id = ROBOT_ID;
+    command.x_vel = requiredSpeedWF.x;
+    command.y_vel = requiredSpeedWF.y;
     command.w = requiredRotSpeed;
     command.dribbler = get_val(msg.buttons, joystickMap.dribblerAxis) > 0;
     command.kicker = get_val(msg.buttons, joystickMap.kickerAxis) > 0;
