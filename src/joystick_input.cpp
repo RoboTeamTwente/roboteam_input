@@ -147,16 +147,11 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
         -pow(get_val(msg.axes, joystickMap.xAxis), 3) * 10,
         pow(get_val(msg.axes, joystickMap.yAxis), 3) * 10
     );
-
     
     roboteam_utils::Vector2 dirVector = roboteam_utils::Vector2(
         -get_val(msg.axes, joystickMap.rotationXAxis),
         get_val(msg.axes, joystickMap.rotationYAxis)
     );
-
-    if (inputNum == 0) {
-        ROS_INFO_STREAM("target_speed: " << target_speed.x << " " << target_speed.y << " dirVector: " << dirVector.x << " " << dirVector.y);
-    }
 
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
@@ -170,12 +165,6 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
     roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
     double requiredRotSpeed = rotationController(targetAngle - myAngle);
-
-    if (inputNum == 0) {
-        // ROS_INFO_STREAM("requiredSpeed: " << requiredSpeed.x << " " << requiredSpeed.y << " targetAngle: " << targetAngle);
-        // ROS_INFO_STREAM("dribbler: " << get_val(msg.buttons, joystickMap.dribblerAxis) << " kicker: " << get_val(msg.buttons, joystickMap.kickerAxis));
-    }
-
 
     roboteam_msgs::RobotCommand command;
     command.id = ROBOT_ID;
