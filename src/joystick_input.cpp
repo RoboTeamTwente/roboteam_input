@@ -185,7 +185,8 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     command.x_vel = requiredSpeedWF.x;
     command.y_vel = requiredSpeedWF.y;
     command.w = requiredRotSpeed;
-    command.dribbler = get_val(msg.buttons, joystickMap.dribblerAxis) > 0;
+    // command.dribbler = get_val(msg.buttons, joystickMap.dribblerAxis) > 0;
+    command.dribbler = true;
     command.kicker = get_val(msg.buttons, joystickMap.kickerAxis) > 0;
     if (command.kicker) {
         command.kicker_vel = 5.0;
