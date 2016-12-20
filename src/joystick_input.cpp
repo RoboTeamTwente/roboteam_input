@@ -163,26 +163,9 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     } else {
         target_speed = (target_speed - target_speed.scale((0.9 - 0.9*0.3)/target_speed.length())).scale(2);
     }
-
-    if (inputNum == 0) {
-        ROS_INFO_STREAM("target_speed: " << target_speed.x << " " << target_speed.y);
-    }
-
-
-        
-    // roboteam_utils::Vector2 dirVector = roboteam_utils::Vector2(
-    //     -get_val(msg.axes, joystickMap.rotationXAxis),
-    //     get_val(msg.axes, joystickMap.rotationYAxis)
-    // );
-
+    
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
-    // if (dirVector.length() > 0.8) {
-    //     targetAngle = dirVector.angle();
-    //     lastAngles[ROBOT_ID] = targetAngle;
-    // } else {
-    //     targetAngle = lastAngles[ROBOT_ID];
-    // }
 
     roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
     roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
