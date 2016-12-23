@@ -163,7 +163,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     } else {
         target_speed = (target_speed - target_speed.scale((0.9 - 0.9*0.3)/target_speed.length())).scale(2);
     }
-    
+
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
 
@@ -176,7 +176,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     if (distanceToBall < 1) {
         requiredSpeedWF = requiredSpeedWF.scale(distanceToBall + 0.2);
     }
-    targetAngle = (ballPos - myPos).angle(); 
+    targetAngle = (ballPos - myPos).angle();
 
     double requiredRotSpeed = rotationController(targetAngle - myAngle);
 

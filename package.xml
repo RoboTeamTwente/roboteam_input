@@ -58,7 +58,7 @@
   <run_depend>sensor_msgs</run_depend>
   <run_depend>message_runtime</run_depend>
   <run_depend>roboteam_msgs</run_depend>
-  <run_depend>roboteam_utils</run_depend> 
+  <run_depend>roboteam_utils</run_depend>
   <run_depend>roboteam_tactics</run_depend>
   <run_depend>rospy</run_depend>
   <run_depend>rqt_gui</run_depend>
@@ -70,5 +70,6 @@
   <export>
     <!-- Other tools can request additional information be placed here -->
 
+    <rqt_gui plugin="${prefix}/input_plugin.xml"/>
   </export>
 </package>
