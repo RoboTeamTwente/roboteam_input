@@ -9,6 +9,7 @@
 #include "roboteam_msgs/RobotCommand.h"
 #include "roboteam_msgs/World.h"
 #include "roboteam_utils/Vector2.h"
+#include "roboteam_utils/world_analysis.h"
 #include <typeinfo>
 #include <cmath>
 
@@ -40,7 +41,7 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
             1, // yAxis
             2, // rotationXAxis
             3, // rotationYAxis
-            10, // dribblerAxiscatkin
+            10, // dribblerAxis
             11 // kickerAxis
         }},
         {"gioteck", {
@@ -167,16 +168,35 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
 
+    roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
+    roboteam_utils::Vector2 ballPos(world.ball.pos);
+
+    double distanceToBall = (ballPos - myPos).length();
+
+    targetAngle = (ballPos - myPos).angle();
+
+    if (get_val(msg.buttons, joystickMap.dribblerAxis) > 0 /*&& distanceToBall < 0.3*/) {
+        // Stick to ball mode!
+
+        if (bot_has_ball(world.us.at(ROBOT_ID), world.ball)) {
+            // Do nothing for now.
+            target_speed = Vector2(0, 0);
+        } else {
+            // Move towards the ball.
+            // Keep a distance of 0.09 metres.
+
+            Vector2 worldTarget = ballPos - Vector2(0.09, 0).rotate(target_speed.angle());
+
+            target_speed = (worldTarget - myPos);
+        }
+    }
+
     roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
     roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
 
-    roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
-    roboteam_utils::Vector2 ballPos(world.ball.pos);
-    double distanceToBall = (ballPos - myPos).length();
-    if (distanceToBall < 1) {
+    /*if (distanceToBall < 1) {
         requiredSpeedWF = requiredSpeedWF.scale(distanceToBall + 0.2);
-    }
-    targetAngle = (ballPos - myPos).angle();
+    }*/
 
     double requiredRotSpeed = rotationController(targetAngle - myAngle);
 
