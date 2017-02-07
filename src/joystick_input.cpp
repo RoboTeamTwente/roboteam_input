@@ -8,7 +8,9 @@
 #include "sensor_msgs/Joy.h"
 #include "roboteam_msgs/RobotCommand.h"
 #include "roboteam_msgs/World.h"
+#include "roboteam_utils/Math.h"
 #include "roboteam_utils/Vector2.h"
+#include "roboteam_utils/Draw.h"
 #include "roboteam_utils/world_analysis.h"
 #include <typeinfo>
 #include <cmath>
@@ -138,7 +140,7 @@ double speed_value(const double input) {
     return speed_value;
 }
 
-roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
+roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg, Draw& draw) {
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
     roboteam_msgs::World world = lastWorld;
@@ -171,25 +173,73 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
     roboteam_utils::Vector2 ballPos(world.ball.pos);
 
-    double distanceToBall = (ballPos - myPos).length();
+    Vector2 distanceToBall = (ballPos - myPos);
 
     targetAngle = (ballPos - myPos).angle();
 
     if (get_val(msg.buttons, joystickMap.dribblerAxis) > 0 /*&& distanceToBall < 0.3*/) {
         // Stick to ball mode!
 
-        if (bot_has_ball(world.us.at(ROBOT_ID), world.ball)) {
-            // Do nothing for now.
-            target_speed = Vector2(0, 0);
-        } else {
-            // Move towards the ball.
-            // Keep a distance of 0.09 metres.
+        double dribbleAngle = targetAngle;
+        double dribbleDistance = 0.095;
 
-            Vector2 worldTarget = ballPos - Vector2(0.09, 0).rotate(target_speed.angle());
+        // Perpendicular to the robot -> ball vector.
+        Vector2 turnDirection(distanceToBall.y, -distanceToBall.x);
+        turnDirection = turnDirection.normalize();
 
-            target_speed = (worldTarget - myPos);
+        Vector2 dribbleTarget = (
+            ballPos
+            - Vector2(dribbleDistance, 0 ).rotate(dribbleAngle)
+        );
+
+        draw.SetColor(255, 0, 150);
+        draw.DrawPoint("DribbleTarget", dribbleTarget);
+
+        if (target_speed.length() > 0.1) {
+
+            double targetDribbleAngle = target_speed.angle();
+
+            double cwDistance = getClockwiseAngle(targetAngle, targetDribbleAngle);
+            double ccwDistance = getCounterClockwiseAngle(targetAngle, targetDribbleAngle);
+
+            double angleTolerance = M_PI * 0.1; // Angle tolerance for when to start dribbling.\
+
+            draw.SetColor(0, 0, 0);
+
+            if (cwDistance < angleTolerance || ccwDistance < angleTolerance) {
+                // Close enough, just move to the target position.
+                dribbleTarget = (
+                    ballPos
+                    - Vector2(dribbleDistance, 0 ).rotate(targetDribbleAngle)
+                );
+
+                draw.SetColor(255, 0, 0);
+                draw.DrawPoint("PreliminaryTarget", dribbleTarget);
+
+                if (distanceToBall.length() <= dribbleDistance + 0.02) {
+                    // Let's start dribbling!
+                    dribbleTarget = dribbleTarget + target_speed.scale(0.5);
+
+                    draw.SetColor(0, 255, 0);
+                }
+            } else {
+                if (cwDistance < ccwDistance) {
+                    // Rotate cw.
+                    turnDirection = turnDirection.rotate(M_PI);
+                } // Else, default to rotating ccw.
+
+                dribbleTarget = dribbleTarget + turnDirection.scale(0.15);
+                draw.SetColor(0, 0, 255);
+            }
+
+            draw.DrawPoint("InputTarget", dribbleTarget);
+
         }
-    }
+
+        target_speed = (dribbleTarget - myPos);
+    } /*else {
+        draw.RemovePoint("InputTarget");
+    }*/
 
     roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
     roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
@@ -221,6 +271,8 @@ int main(int argc, char **argv) {
 
     ros::init(argc, argv, "roboteam_input");
     ros::NodeHandle n;
+
+    Draw draw = Draw();
 
     // For each input, construct a subscriber and store it in this vector
     // If we'd want to switch between inpus based on some topic, this vector
@@ -265,7 +317,7 @@ int main(int argc, char **argv) {
                 // If a message is present
                 // if (joyMsgs[i]) {
                     // Make a command out of it
-                    roboteam_msgs::RobotCommand command = makeRobotCommand(i, joyMsgs[i]);
+                    roboteam_msgs::RobotCommand command = makeRobotCommand(i, joyMsgs[i], draw);
                     // Send it
                     pub.publish(command);
 
