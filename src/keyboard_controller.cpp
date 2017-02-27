@@ -4,6 +4,7 @@
 #include <boost/optional.hpp>
 
 #include "roboteam_msgs/RobotCommand.h"
+#include "roboteam_utils/Vector2.h"
 
 namespace b = boost;
 
@@ -95,6 +96,8 @@ int main(int argc, char* argv[]) {
     int currentID = 5;
     double currentVel = 2;
     double currentW = 2;
+
+    // TODO: Keep vel in a vector and update accordingly!
 
     // Ros stuff
     ros::init(argc, argv, "keyboard_controller");
