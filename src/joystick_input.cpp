@@ -137,6 +137,8 @@ double speed_value(const double input) {
     return speed_value;
 }
 
+bool kickerhack=false;
+
 roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
@@ -150,14 +152,15 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     const JoystickMap &joystickMap = joystickTypeMap.at(joyType);
 
     // Get the robot id
-    int ROBOT_ID = 0;
-    ros::param::get(group + "/robot", ROBOT_ID);
+    int ROBOT_ID = 5;
+    //ros::param::get(group + "/robot", ROBOT_ID);
 
     roboteam_utils::Vector2 target_speed = roboteam_utils::Vector2(
         -get_val(msg.axes, joystickMap.xAxis),
         get_val(msg.axes, joystickMap.yAxis)
     );
 
+    /*
     if (target_speed.length() < 0.9) {
         target_speed = target_speed.scale(0.3);
     } else {
@@ -170,6 +173,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
     roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
 
+
     roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
     roboteam_utils::Vector2 ballPos(world.ball.pos);
     double distanceToBall = (ballPos - myPos).length();
@@ -180,16 +184,29 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
 
     double requiredRotSpeed = rotationController(targetAngle - myAngle);
 
+    */
     roboteam_msgs::RobotCommand command;
     command.id = ROBOT_ID;
-    command.x_vel = requiredSpeedWF.x;
-    command.y_vel = requiredSpeedWF.y;
-    command.w = requiredRotSpeed;
-    // command.dribbler = get_val(msg.buttons, joystickMap.dribblerAxis) > 0;
-    command.dribbler = true;
+    command.x_vel = get_val(msg.axes, joystickMap.xAxis)*-4;
+    command.y_vel = get_val(msg.axes, joystickMap.yAxis)*4;
+
+    if(abs(command.x_vel) < 0.1){command.x_vel=0;}
+    if(abs(command.y_vel) < 0.1){command.y_vel=0;}
+
+    command.w = get_val(msg.axes, joystickMap.rotationXAxis)*2;
+    command.dribbler = get_val(msg.buttons, joystickMap.dribblerAxis) > 0;
+
+    //command.dribbler = true;
     command.kicker = get_val(msg.buttons, joystickMap.kickerAxis) > 0;
-    if (command.kicker) {
-        command.kicker_vel = 5.0;
+    if (command.kicker) { std::cout << "kicker command";
+        if(kickerhack){
+            command.kicker_vel=4.0;
+            kickerhack=false;
+        }
+        else {
+            command.kicker_vel = 5.0;
+            kickerhack=true;
+        }
     }
     return command;
 }
@@ -229,14 +246,14 @@ int main(int argc, char **argv) {
     while (!receivedFirstWorldMsg) {
         ros::spinOnce();
     }
-
+    std::cout << "got world state \n";
     // TODO: Right now the roboteam_input's input names (js0, js1) are hardcoded
     // in the launch file. they should probably also be changeable through an event/topic
     // However, the joy & joy_node nodes are fixed, so not sure if this is possible
     // without writing our own joynode code.
 
     // Flush received messages every 1/30th second
-    ros::Rate fps30(30);
+    ros::Rate fps30(10);
 
     while (ros::ok()) {
         // if (lastWorld.us.size() > 0) {
@@ -245,10 +262,11 @@ int main(int argc, char **argv) {
                 // If a message is present
                 // if (joyMsgs[i]) {
                     // Make a command out of it
+                    if(i==4){
                     roboteam_msgs::RobotCommand command = makeRobotCommand(i, joyMsgs[i]);
                     // Send it
                     pub.publish(command);
-
+                    }
                     // Reset the element in the array
                     // joyMsgs[i] = boost::none;
                 // }
