@@ -3,7 +3,7 @@
 #include <boost/optional.hpp>
 #include <map>
 
-#include "joystick_input.h"
+#include <string>
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
 #include "roboteam_msgs/RobotCommand.h"
@@ -73,17 +73,17 @@ double cleanAngle(double angle){
     }
 }
 
-roboteam_utils::Vector2 positionController(roboteam_utils::Vector2 posError) {
+Vector2 positionController(Vector2 posError) {
     double maxSpeed = 2.0;
-    double P_Gain = 2.0;
-    roboteam_utils::Vector2 requiredSpeed = posError*P_Gain;
+    double pGain = 2.0;
+    Vector2 requiredSpeed = posError*pGain;
 
     // Slow down once we get close to the goal, otherwise go at maximum speed
     if (posError.length() > 0.5) { // TODO: compute this distance depending on the maximum speed, so that there is no overshoot
         if (requiredSpeed.length() > 0) {
             requiredSpeed = requiredSpeed.scale(1/requiredSpeed.length() * maxSpeed);
         } else {
-            requiredSpeed = roboteam_utils::Vector2(0.0, 0.0);
+            requiredSpeed = Vector2(0.0, 0.0);
         }
     }
     return requiredSpeed;
@@ -108,8 +108,8 @@ void receiveJoyMsg(int inputNum, const sensor_msgs::JoyConstPtr& msg) {
     joyMsgs[inputNum] = *msg;
 }
 
-roboteam_utils::Vector2 worldToRobotFrame(roboteam_utils::Vector2 requiredv, double rotation) {
-    roboteam_utils::Vector2 robotRequiredv;
+Vector2 worldToRobotFrame(Vector2 requiredv, double rotation) {
+    Vector2 robotRequiredv;
     robotRequiredv.x=requiredv.x*cos(-rotation)-requiredv.y*sin(-rotation);
     robotRequiredv.y=requiredv.x*sin(-rotation)+requiredv.y*cos(-rotation);
 	return robotRequiredv;
@@ -120,21 +120,21 @@ std::map<int, double> lastAngles;
 template <
     typename T
 >
-T get_val(const std::vector<T> & values, size_t index) {
+T getVal(const std::vector<T> & values, size_t index) {
     if (index < values.size()) {
         return values[index];
     }
     return T(0);
 }
 
-double speed_value(const double input) {
-    double speed_value;
+double speedValue(const double input) {
+    double speedValue;
     if (input < 0.8) {
-        speed_value = 0.1 * input;
+        speedValue = 0.1 * input;
     } else {
-        speed_value = 9 * input - 9;
+        speedValue = 9 * input - 9;
     }
-    return speed_value;
+    return speedValue;
 }
 
 bool kickerhack=false;
@@ -155,9 +155,9 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     int ROBOT_ID = 5;
     //ros::param::get(group + "/robot", ROBOT_ID);
 
-    roboteam_utils::Vector2 target_speed = roboteam_utils::Vector2(
-        -get_val(msg.axes, joystickMap.xAxis),
-        get_val(msg.axes, joystickMap.yAxis)
+    Vector2 target_speed = Vector2(
+        -getVal(msg.axes, joystickMap.xAxis),
+        getVal(msg.axes, joystickMap.yAxis)
     );
 
     /*
@@ -170,12 +170,12 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
 
-    roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
-    roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
+    Vector2 requiredSpeed = positionController(target_speed);
+    Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
 
 
-    roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
-    roboteam_utils::Vector2 ballPos(world.ball.pos);
+    Vector2 myPos(world.us.at(ROBOT_ID).pos);
+    Vector2 ballPos(world.ball.pos);
     double distanceToBall = (ballPos - myPos).length();
     if (distanceToBall < 1) {
         requiredSpeedWF = requiredSpeedWF.scale(distanceToBall + 0.2);
@@ -187,17 +187,17 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     */
     roboteam_msgs::RobotCommand command;
     command.id = ROBOT_ID;
-    command.x_vel = get_val(msg.axes, joystickMap.xAxis)*-4;
-    command.y_vel = get_val(msg.axes, joystickMap.yAxis)*4;
+    command.x_vel = getVal(msg.axes, joystickMap.xAxis)*-4;
+    command.y_vel = getVal(msg.axes, joystickMap.yAxis)*4;
 
     if(abs(command.x_vel) < 0.1){command.x_vel=0;}
     if(abs(command.y_vel) < 0.1){command.y_vel=0;}
 
-    command.w = get_val(msg.axes, joystickMap.rotationXAxis)*2;
-    command.dribbler = get_val(msg.buttons, joystickMap.dribblerAxis) > 0;
+    command.w = getVal(msg.axes, joystickMap.rotationXAxis)*2;
+    command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
 
     //command.dribbler = true;
-    command.kicker = get_val(msg.buttons, joystickMap.kickerAxis) > 0;
+    command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
     if (command.kicker) { std::cout << "kicker command";
         if(kickerhack){
             command.kicker_vel=4.0;
