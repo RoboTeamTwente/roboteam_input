@@ -73,17 +73,17 @@ double cleanAngle(double angle){
     }
 }
 
-roboteam_utils::Vector2 positionController(roboteam_utils::Vector2 posError) {
+Vector2 positionController(Vector2 posError) {
     double maxSpeed = 2.0;
     double pGain = 2.0;
-    roboteam_utils::Vector2 requiredSpeed = posError*pGain;
+    Vector2 requiredSpeed = posError*pGain;
 
     // Slow down once we get close to the goal, otherwise go at maximum speed
     if (posError.length() > 0.5) { // TODO: compute this distance depending on the maximum speed, so that there is no overshoot
         if (requiredSpeed.length() > 0) {
             requiredSpeed = requiredSpeed.scale(1/requiredSpeed.length() * maxSpeed);
         } else {
-            requiredSpeed = roboteam_utils::Vector2(0.0, 0.0);
+            requiredSpeed = Vector2(0.0, 0.0);
         }
     }
     return requiredSpeed;
@@ -108,8 +108,8 @@ void receiveJoyMsg(int inputNum, const sensor_msgs::JoyConstPtr& msg) {
     joyMsgs[inputNum] = *msg;
 }
 
-roboteam_utils::Vector2 worldToRobotFrame(roboteam_utils::Vector2 requiredv, double rotation) {
-    roboteam_utils::Vector2 robotRequiredv;
+Vector2 worldToRobotFrame(Vector2 requiredv, double rotation) {
+    Vector2 robotRequiredv;
     robotRequiredv.x=requiredv.x*cos(-rotation)-requiredv.y*sin(-rotation);
     robotRequiredv.y=requiredv.x*sin(-rotation)+requiredv.y*cos(-rotation);
 	return robotRequiredv;
@@ -155,7 +155,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     int ROBOT_ID = 5;
     //ros::param::get(group + "/robot", ROBOT_ID);
 
-    roboteam_utils::Vector2 target_speed = roboteam_utils::Vector2(
+    Vector2 target_speed = Vector2(
         -getVal(msg.axes, joystickMap.xAxis),
         getVal(msg.axes, joystickMap.yAxis)
     );
@@ -170,12 +170,12 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
 
-    roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
-    roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
+    Vector2 requiredSpeed = positionController(target_speed);
+    Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
 
 
-    roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
-    roboteam_utils::Vector2 ballPos(world.ball.pos);
+    Vector2 myPos(world.us.at(ROBOT_ID).pos);
+    Vector2 ballPos(world.ball.pos);
     double distanceToBall = (ballPos - myPos).length();
     if (distanceToBall < 1) {
         requiredSpeedWF = requiredSpeedWF.scale(distanceToBall + 0.2);
