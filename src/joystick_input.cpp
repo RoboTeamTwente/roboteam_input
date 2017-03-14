@@ -21,9 +21,10 @@ struct JoystickMap {
     int rotationYAxis;
     int dribblerAxis;
     int kickerAxis;
+    int haltButton;
 } ;
 
-const int NUM_CONTROLLERS = 4;
+const int NUM_CONTROLLERS = 5;
 
 const std::map<std::string, JoystickMap> joystickTypeMap = {
     {
@@ -33,15 +34,17 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
             3, // rotationXAxis
             4, // rotationYAxis
             4, // dribblerAxis
-            5 // kickerAxis
+            5, // kickerAxis
+            1 // haltButton
         }},
         {"playstation", {
-            0, // xAxis
-            1, // yAxis
-            2, // rotationXAxis
-            3, // rotationYAxis
+            0,  // xAxis
+            1,  // yAxis
+            2,  // rotationXAxis
+            3,  // rotationYAxis
             10, // dribblerAxiscatkin
-            11 // kickerAxis
+            11, // kickerAxis
+            1,  // haltButton
         }},
         {"gioteck", {
             0, // yAxis
@@ -49,7 +52,8 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
             2, // rotationXAxis
             3, // rotationYAxis
             4, // dribblerAxis
-            5 // kickerAxis
+            5, // kickerAxis
+            1, // haltButton
         }}
     }
 };
@@ -73,17 +77,17 @@ double cleanAngle(double angle){
     }
 }
 
-roboteam_utils::Vector2 positionController(roboteam_utils::Vector2 posError) {
+rtt::Vector2 positionController(rtt::Vector2 posError) {
     double maxSpeed = 2.0;
     double P_Gain = 2.0;
-    roboteam_utils::Vector2 requiredSpeed = posError*P_Gain;
+    rtt::Vector2 requiredSpeed = posError*P_Gain;
 
     // Slow down once we get close to the goal, otherwise go at maximum speed
     if (posError.length() > 0.5) { // TODO: compute this distance depending on the maximum speed, so that there is no overshoot
         if (requiredSpeed.length() > 0) {
             requiredSpeed = requiredSpeed.scale(1/requiredSpeed.length() * maxSpeed);
         } else {
-            requiredSpeed = roboteam_utils::Vector2(0.0, 0.0);
+            requiredSpeed = rtt::Vector2(0.0, 0.0);
         }
     }
     return requiredSpeed;
@@ -108,8 +112,8 @@ void receiveJoyMsg(int inputNum, const sensor_msgs::JoyConstPtr& msg) {
     joyMsgs[inputNum] = *msg;
 }
 
-roboteam_utils::Vector2 worldToRobotFrame(roboteam_utils::Vector2 requiredv, double rotation) {
-    roboteam_utils::Vector2 robotRequiredv;
+rtt::Vector2 worldToRobotFrame(rtt::Vector2 requiredv, double rotation) {
+    rtt::Vector2 robotRequiredv;
     robotRequiredv.x=requiredv.x*cos(-rotation)-requiredv.y*sin(-rotation);
     robotRequiredv.y=requiredv.x*sin(-rotation)+requiredv.y*cos(-rotation);
 	return robotRequiredv;
@@ -147,15 +151,15 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     const std::string group = "~input" + std::to_string(inputNum);
 
     // Get the joystick type
-    std::string joyType = "playstation";
+    std::string joyType = "xbox";
     ros::param::get(group + "/joyType", joyType);
     const JoystickMap &joystickMap = joystickTypeMap.at(joyType);
 
     // Get the robot id
-    int ROBOT_ID = 5;
+    int ROBOT_ID = 7;
     //ros::param::get(group + "/robot", ROBOT_ID);
 
-    roboteam_utils::Vector2 target_speed = roboteam_utils::Vector2(
+    rtt::Vector2 target_speed = rtt::Vector2(
         -get_val(msg.axes, joystickMap.xAxis),
         get_val(msg.axes, joystickMap.yAxis)
     );
@@ -170,12 +174,12 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     double myAngle = world.us.at(ROBOT_ID).angle;
     double targetAngle;
 
-    roboteam_utils::Vector2 requiredSpeed = positionController(target_speed);
-    roboteam_utils::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
+    rtt::Vector2 requiredSpeed = positionController(target_speed);
+    rtt::Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
 
 
-    roboteam_utils::Vector2 myPos(world.us.at(ROBOT_ID).pos);
-    roboteam_utils::Vector2 ballPos(world.ball.pos);
+    rtt::Vector2 myPos(world.us.at(ROBOT_ID).pos);
+    rtt::Vector2 ballPos(world.ball.pos);
     double distanceToBall = (ballPos - myPos).length();
     if (distanceToBall < 1) {
         requiredSpeedWF = requiredSpeedWF.scale(distanceToBall + 0.2);
@@ -187,18 +191,33 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     */
     roboteam_msgs::RobotCommand command;
     command.id = ROBOT_ID;
-    command.x_vel = get_val(msg.axes, joystickMap.xAxis)*-4;
-    command.y_vel = get_val(msg.axes, joystickMap.yAxis)*4;
+    // command.x_vel = get_val(msg.axes, joystickMap.xAxis) * -2;
+    command.y_vel = get_val(msg.axes, joystickMap.yAxis) * 2;
+    command.w = get_val(msg.axes, joystickMap.rotationXAxis) * 2;
 
-    if(abs(command.x_vel) < 0.1){command.x_vel=0;}
-    if(abs(command.y_vel) < 0.1){command.y_vel=0;}
+    if(fabs(command.x_vel) < 0.1){
+        command.x_vel=0;
+    }
 
-    command.w = get_val(msg.axes, joystickMap.rotationXAxis)*2;
+    if(fabs(command.y_vel) < 0.1){
+        command.y_vel=0;
+    }
+
+    if(fabs(command.w) < 0.4){
+        command.w=0;
+    } else if (fabs(command.w) < 0.85) {
+        int sign = 0;
+        if (command.w < 0) sign = -1;
+        if (command.w > 0) sign = 1;
+        command.w = 0.85 * sign;
+    }
+
     command.dribbler = get_val(msg.buttons, joystickMap.dribblerAxis) > 0;
 
     //command.dribbler = true;
     command.kicker = get_val(msg.buttons, joystickMap.kickerAxis) > 0;
-    if (command.kicker) { std::cout << "kicker command";
+    if (command.kicker) { 
+        std::cout << "kicker command";
         if(kickerhack){
             command.kicker_vel=4.0;
             kickerhack=false;
@@ -208,6 +227,17 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
             kickerhack=true;
         }
     }
+
+    // Halting
+    if (joystickMap.haltButton >= 0 && msg.buttons.size() > 0 && msg.buttons.at(joystickMap.haltButton) > 0) {
+        command = roboteam_msgs::RobotCommand();
+        command.id = ROBOT_ID;
+    } else if (msg.buttons.size() == 0) {
+        std::cout << "Halt button not detected, aborting!\n";
+        command = roboteam_msgs::RobotCommand();
+        command.id = ROBOT_ID;
+    }
+
     return command;
 }
 
@@ -231,6 +261,7 @@ int main(int argc, char **argv) {
     std::vector<std::unique_ptr<ros::Subscriber>> subscribers;
     for (int i = 0; i < NUM_CONTROLLERS; ++i) {
         // Make a subscriber on the stack
+        std::cout << "Subscribing to js" << i << "\n";
         auto subscriber = n.subscribe<sensor_msgs::Joy>("js" + std::to_string(i), 1, boost::bind(receiveJoyMsg, i, _1));
         // Construct a copy on the heap
         std::unique_ptr<ros::Subscriber> subscriberHeap(new ros::Subscriber(subscriber));
@@ -242,11 +273,11 @@ int main(int argc, char **argv) {
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
     // Create world & geom callbacks
-    std::cout << "Waiting for first world_state...\n";
-    while (!receivedFirstWorldMsg) {
-        ros::spinOnce();
-    }
-    std::cout << "got world state \n";
+    // std::cout << "Waiting for first world_state...\n";
+    // while (!receivedFirstWorldMsg) {
+        // ros::spinOnce();
+    // }
+    // std::cout << "got world state \n";
     // TODO: Right now the roboteam_input's input names (js0, js1) are hardcoded
     // in the launch file. they should probably also be changeable through an event/topic
     // However, the joy & joy_node nodes are fixed, so not sure if this is possible
