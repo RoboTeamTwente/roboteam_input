@@ -53,9 +53,96 @@ b::optional<int> stringToID(std::string idStr) {
     }
 }
 
+double const MAX_VEL = 6;
+double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
+int const MAX_ID = 16;
+
+void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int currentID) {
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+    int offsetX = 10;
+
+    int startX = offsetX + 30;
+    int startY = 10;
+    int barHeight = 20;
+    int barWidth = 100;
+    int spacing = 20;
+
+    int pictoStartX = offsetX + 2;
+    int pictoWidth = 20;
+    int pictoEndX = pictoStartX + pictoWidth;
+
+    // Speed
+    int pictoHalfY = startY + barHeight / 2;
+    SDL_RenderDrawLine(renderer, pictoStartX, pictoHalfY, pictoEndX, pictoHalfY);
+    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY);
+    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY + barHeight);
+
+    SDL_Rect velRect;
+    velRect.x = startX;
+    velRect.y = startY;
+    velRect.w = currentVel / MAX_VEL * barWidth;
+    velRect.h = barHeight;
+    SDL_RenderFillRect(renderer, &velRect);
+
+    // Angle
+    int pictoStartY = startY + barHeight + spacing;
+    int pictoEndY = pictoStartY + barHeight;
+    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoStartY);
+    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoEndY);
+
+    SDL_Rect wRect;
+    wRect.x = startX;
+    wRect.y = startY + barHeight + spacing;
+    wRect.w = currentW / MAX_W * barWidth;
+    wRect.h = barHeight;
+    SDL_RenderFillRect(renderer, &wRect);
+
+    // ID
+    pictoStartY = startY + barHeight + spacing + barHeight + spacing;
+    pictoEndY = pictoStartY + barHeight;
+
+    SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoEndX, pictoStartY);
+    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoEndY);
+    SDL_RenderDrawLine(renderer, (pictoStartX + pictoEndX) / 2, pictoStartY, (pictoStartX + pictoEndX) / 2, pictoEndY);
+
+    int boxSize = barHeight;
+    int boxSpacing = spacing;
+    int boxesPerRow = 4;
+    int rows = 4;
+
+    for (int y = 0; y < rows; ++y) {
+        for (int x = 0; x < boxesPerRow; ++x) {
+            int id = y * boxesPerRow + x;
+
+            SDL_Rect outlineRect;
+            outlineRect.x = startX + x * (boxSize + boxSpacing);
+            outlineRect.y = y * (boxSize + boxSpacing) + (startY + barHeight + spacing + barHeight + spacing);
+            outlineRect.w = boxSize;
+            outlineRect.h = boxSize;
+
+            if (id <= currentID) {
+                SDL_RenderFillRect(renderer, &outlineRect);
+            } else {
+                SDL_RenderDrawRect(renderer, &outlineRect);
+            }
+        }
+    }
+}
+
 }
 
 int main(int argc, char* argv[]) {
+    std::cout << R"--(
+RTT Keyboard Joystick
+
+Controls:
+    Arrow keys to steer
+    0-9, a-f to select an ID
+    Numpad 4/6 to decrease/increase x velocity
+    Numpad 1/3 to decrease/increase angular velocity
+)--";
+
     int posX = 100;
     int posY = 200;
     int sizeX = 300;
@@ -69,7 +156,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    window = SDL_CreateWindow("RTT Keyboard controller", posX, posY, sizeX, sizeY, 0);
+    window = SDL_CreateWindow("RTT Keyboard Joystick", posX, posY, sizeX, sizeY, 0);
 
     if (window == nullptr) {
         std::cout << "Failed to create window : " << SDL_GetError();
@@ -109,11 +196,15 @@ int main(int argc, char* argv[]) {
     bool quit = false;
     SDL_Event e;
 
+    int x_vel = 0;
+    int w = 0;
+
     while(!quit && ros::ok()) {
+
         while(SDL_PollEvent(&e) != 0) {
             if ( e.type == SDL_QUIT ) {
                 quit = true;
-            } else if (e.type == SDL_KEYDOWN) {
+            } else if (e.type == SDL_KEYDOWN && e.key.repeat == 0) {
                 auto key = e.key.keysym.sym;
 
                 if ((e.key.keysym.mod & KMOD_CTRL) > 0) {
@@ -130,40 +221,78 @@ int main(int argc, char* argv[]) {
                     };
                 } else if (std::find(arrowKeys.begin(), arrowKeys.end(), key) != arrowKeys.end()) {
                     // Arrow key!
-                    roboteam_msgs::RobotCommand r;
-
-                    r.id = currentID;
 
                     if (key == SDLK_UP) {
-                        r.y_vel = currentVel;
+                        x_vel += 1;
                     } else if (key == SDLK_DOWN) {
-                        r.y_vel = -currentVel;
+                        x_vel -= 1;
                     } else if (key == SDLK_LEFT) {
-                        r.w = currentW;
+                        w += 1;
                     } else if (key == SDLK_RIGHT) {
-                        r.w = -currentW;
-                    }
-
-                    robotCommandPub.publish(r);
+                        w -= 1;
+                    } 
                 } else if (key == SDLK_ESCAPE || key == SDLK_q) {
                     quit = true;
+                } else if (key == SDLK_KP_4) {
+                    currentVel -= 0.1;
+                } else if (key == SDLK_KP_6) {
+                    currentVel += 0.1;
+                } else if (key == SDLK_KP_1) {
+                    currentW -= 0.3;
+                } else if (key == SDLK_KP_3) {
+                    currentW += 0.3;
+                }
+            } else if (e.type == SDL_KEYDOWN) {
+                auto key = e.key.keysym.sym;
+
+                if (key == SDLK_KP_4) {
+                    currentVel -= 0.1;
+                } else if (key == SDLK_KP_6) {
+                    currentVel += 0.1;
+                } else if (key == SDLK_KP_1) {
+                    currentW -= 0.3;
+                } else if (key == SDLK_KP_3) {
+                    currentW += 0.3;
                 }
             } else if (e.type == SDL_KEYUP) {
                 auto key = e.key.keysym.sym;
 
                 if (std::find(arrowKeys.begin(), arrowKeys.end(), key) != arrowKeys.end()) {
                     // Arrow key!
-                    roboteam_msgs::RobotCommand r;
 
-                    r.id = currentID;
-
-                    robotCommandPub.publish(r);
+                    if (key == SDLK_UP) {
+                        x_vel -= 1;
+                    } else if (key == SDLK_DOWN) {
+                        x_vel += 1;
+                    } else if (key == SDLK_LEFT) {
+                        w -= 1;
+                    } else if (key == SDLK_RIGHT) {
+                        w += 1;
+                    }
                 }
             }
         }
 
+        if (currentVel > MAX_VEL) currentVel = MAX_VEL;
+        if (currentVel < 0) currentVel = 0;
+        if (currentW > MAX_W) currentW = MAX_W;
+        if (currentW < 0) currentW = 0;
+
+        roboteam_msgs::RobotCommand r;
+        r.id = currentID;
+        r.x_vel = x_vel * currentVel;
+        r.w = w * currentW;
+
+        robotCommandPub.publish(r);
+
         ros::spinOnce();
         fps30.sleep();
+
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        SDL_RenderClear(renderer);
+
+        drawGui(renderer, currentVel, currentW, currentID);
+        SDL_RenderPresent(renderer);
     }
 
     return 0;
