@@ -141,6 +141,9 @@ RTT Keyboard Joystick
 Controls:
     Arrow keys to steer/drive
     z/x to strafe left/right
+    v to kick
+    n to chip
+    space to dribble
     0-9, a-f to select an ID
     Numpad 4/6 to decrease/increase x velocity
     Numpad 1/3 to decrease/increase angular velocity
@@ -202,6 +205,9 @@ Controls:
     int x_vel = 0;
     int y_vel = 0;
     int w = 0;
+    bool doKick = false;
+    bool doChip = false;
+    bool doDribble = false;
 
     while(!quit && ros::ok()) {
 
@@ -249,6 +255,12 @@ Controls:
                     currentW -= 0.3;
                 } else if (key == SDLK_KP_3) {
                     currentW += 0.3;
+                } else if (key == SDLK_v) {
+                    doKick = true;
+                } else if (key == SDLK_n) {
+                    doChip = true;
+                } else if (key == SDLK_SPACE) {
+                    doDribble = true;
                 }
             } else if (e.type == SDL_KEYDOWN) {
                 auto key = e.key.keysym.sym;
@@ -265,22 +277,20 @@ Controls:
             } else if (e.type == SDL_KEYUP) {
                 auto key = e.key.keysym.sym;
 
-                if (std::find(arrowKeys.begin(), arrowKeys.end(), key) != arrowKeys.end()) {
-                    // Arrow key!
-
-                    if (key == SDLK_UP) {
-                        x_vel -= 1;
-                    } else if (key == SDLK_DOWN) {
-                        x_vel += 1;
-                    } else if (key == SDLK_LEFT) {
-                        w -= 1;
-                    } else if (key == SDLK_RIGHT) {
-                        w += 1;
-                    } else if (key == SDLK_z) {
-                        y_vel -= 1;
-                    } else if (key == SDLK_x) {
-                        y_vel += 1;
-                    }
+                if (key == SDLK_UP) {
+                    x_vel -= 1;
+                } else if (key == SDLK_DOWN) {
+                    x_vel += 1;
+                } else if (key == SDLK_LEFT) {
+                    w -= 1;
+                } else if (key == SDLK_RIGHT) {
+                    w += 1;
+                } else if (key == SDLK_z) {
+                    y_vel -= 1;
+                } else if (key == SDLK_x) {
+                    y_vel += 1;
+                } else if (key == SDLK_SPACE) {
+                    doDribble = false;
                 }
             }
         }
@@ -295,6 +305,21 @@ Controls:
         r.x_vel = x_vel * currentVel;
         r.y_vel = y_vel * currentVel;
         r.w = w * currentW;
+
+        if (doKick) {
+            r.kicker = true;
+            r.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
+            r.kicker_forced = true;
+        } else if (doChip) {
+            r.chipper = true;
+            r.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
+            r.chipper_forced= true;
+        }
+
+        doKick = false;
+        doChip = false;
+
+        r.dribbler = doDribble;
 
         robotCommandPub.publish(r);
 
