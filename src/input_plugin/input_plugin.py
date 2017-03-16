@@ -52,8 +52,6 @@ class InputPlugin(Plugin):
         # Add widget to the user interface
         context.add_widget(self._widget)
 
-        print("Done!")
-
     def shutdown_plugin(self):
         # TODO unregister all publishers here
         pass
