@@ -58,7 +58,7 @@ class InputWidget(QtWidgets.QFrame):
 
 
     def get_param_base(self):
-        return "roboteam_input/input" + str(self._id) + "/"
+        return "input" + str(self._id) + "/"
 
 
     def change_input_port(self, input_port):

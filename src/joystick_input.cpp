@@ -1,7 +1,9 @@
 #include <string>
 #include <cmath>
 #include <boost/optional.hpp>
-namespace b = boost;
+namespace b = ::boost;
+#include <boost/process.hpp>
+namespace bp = ::boost::process;
 #include <map>
 
 #include <string>
@@ -55,7 +57,98 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
     }
 };
 
-std::array<b::optional<sensor_msgs::Joy>, NUM_CONTROLLERS> joyMsgs;
+struct JoyEntry {
+    b::optional<bp::child>        process;
+    b::optional<ros::Subscriber>  subscriber;
+
+    b::optional<sensor_msgs::Joy> msg;
+
+    std::string input;
+    int robotID;
+    std::string joyType;
+
+    static int intSupplier;
+    int const MY_ID;
+
+    JoyEntry() : robotID{-1}, MY_ID{intSupplier++} {}
+
+    void setToInput(std::string newInput) {
+        if (newInput != input) {
+            input = newInput;
+
+            // Remove the most recently received message to prevent stale values.
+            msg = b::none;
+
+            // Kill your darlings if needed
+            if (process) {
+                process = b::none;
+            }
+
+            if (subscriber) {
+                subscriber->shutdown();
+                subscriber = b::none;
+            }
+
+            if (input == "") {
+                return;
+            }
+
+            // Make new process
+            std::string exec = "roslaunch";
+
+            std::vector<std::string> args = {
+                "roboteam_input",
+                "joy_node.launch",
+                "jsTarget:=" + input
+            };
+            
+            // If this ever starts throwing weird compile time errors about
+            // exe_cmd_init being deleted, just go to posix/basic_cmd.hpp
+            // and mark the exe_cmd_init(const ...) function as default
+            // See: https://github.com/klemens-morgenstern/boost-process/issues/21
+            std::cout << "Starting process\n";
+            process = bp::child(
+                bp::search_path("roslaunch"),
+                "roboteam_input",
+                "joy_node.launch",
+                "jsTarget:=" + input,
+                bp::std_out > bp::null
+            );
+
+            // Make new subscriber
+            ros::NodeHandle n;
+            subscriber = n.subscribe(input, 1, &JoyEntry::receiveJoyMsg, this);
+
+        }
+
+    }
+    
+    void receiveJoyMsg(const sensor_msgs::JoyConstPtr& msg) {
+        // Only store the newest messages
+        this->msg = *msg;
+        std::cout << "Received a joy message for " << MY_ID << "\n";
+    }
+
+    void update() {
+        std::string newInput;
+        int newRobotID = -1;
+        std::string newJoyType;
+
+        ros::param::get("input" + std::to_string(MY_ID) + "/input", newInput);
+        ros::param::get("input" + std::to_string(MY_ID) + "/robot", newRobotID);
+        ros::param::get("input" + std::to_string(MY_ID) + "/joyType", newJoyType);
+
+        setToInput(newInput);
+
+        robotID = newRobotID;
+
+        joyType = newJoyType;
+    }
+} ;
+
+int JoyEntry::intSupplier = 0;
+
+std::array<JoyEntry, NUM_CONTROLLERS> joys;
 
 roboteam_msgs::World lastWorld;
 bool receivedFirstWorldMsg = false;
@@ -104,11 +197,6 @@ double rotationController(double angleError) {
 }
 
 
-void receiveJoyMsg(int inputNum, const sensor_msgs::JoyConstPtr& msg) {
-    // Only store the newest messages
-    joyMsgs[inputNum] = *msg;
-}
-
 Vector2 worldToRobotFrame(Vector2 requiredv, double rotation) {
     Vector2 robotRequiredv;
     robotRequiredv.x=requiredv.x*cos(-rotation)-requiredv.y*sin(-rotation);
@@ -140,23 +228,23 @@ double speedValue(const double input) {
 
 bool kickerhack=false;
 
-roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
-    std::cout << "Sending robotcommand for " << inputNum << "\n";
+roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
+    std::cout << "Sending robotcommand for " << joy.MY_ID << "\n";
 
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
     roboteam_msgs::World world = lastWorld;
 
-    const std::string group = "input" + std::to_string(inputNum);
+    // const std::string group = "input" + std::to_string(inputNum);
 
     // Get the joystick type
-    std::string joyType = "playstation";
-    ros::param::get(group + "/joyType", joyType);
-    const JoystickMap &joystickMap = joystickTypeMap.at(joyType);
+    // std::string joyType = "playstation";
+    // ros::param::get(group + "/joyType", joyType);
+    const JoystickMap &joystickMap = joystickTypeMap.at(joy.joyType);
 
     // Get the robot id
-    int ROBOT_ID = 5;
-    ros::param::get(group + "/robot", ROBOT_ID);
+    int ROBOT_ID = joy.robotID;
+    // ros::param::get(group + "/robot", ROBOT_ID);
 
     // Vector2 target_speed = Vector2(
         // -getVal(msg.axes, joystickMap.xAxis),
@@ -228,27 +316,21 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "roboteam_input");
     ros::NodeHandle n;
 
-    std::vector<std::unique_ptr<ros::Subscriber>> subscribers;
-    for (int i = 0; i < NUM_CONTROLLERS; ++i) {
-        // Make a subscriber on the stack
-        auto subscriber = n.subscribe<sensor_msgs::Joy>("js" + std::to_string(i), 1, boost::bind(receiveJoyMsg, i, _1));
-        // Construct on the heap and push it on the vector
-        subscribers.emplace_back(new ros::Subscriber(subscriber));
-    }
-
     auto world_sub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
     ros::Rate fps(10);
 
     while (ros::ok()) {
-        for (int i = 0; i < NUM_CONTROLLERS; ++i) {
-            if (joyMsgs[i]) {
-                roboteam_msgs::RobotCommand command = makeRobotCommand(i, *joyMsgs[i]);
+        for (auto& joy : joys) {
+            joy.update();
+
+            if (joy.msg) {
+                auto command = makeRobotCommand(joy, *joy.msg);
                 pub.publish(command);
             }
             
-            joyMsgs[i] = boost::none;
+            joy.msg = boost::none;
         }
 
         fps.sleep();

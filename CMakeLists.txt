@@ -141,6 +141,7 @@ add_definitions(-std=c++11)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   src
+  boost-process/include
 )
 
 ## Declare a C++ library

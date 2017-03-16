@@ -1,0 +1,10 @@
+<launch>
+    <arg name="jsTarget" />
+
+    <node pkg="joy" type="joy_node" name="$(anon rtt_joy_node)" >
+        <remap from="joy" to="$(arg jsTarget)" />
+        <param name="dev" value="/dev/input/$(arg jsTarget)" />
+        <param name="coalesce_interval" value="0.01" />
+    </node>
+</launch>
+
