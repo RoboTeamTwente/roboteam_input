@@ -6,6 +6,7 @@
     <qtgui>
         <group>
           <label>RoboTeam Twente</label>
+          <icon type="file">icon.png</icon>
         </group>
         <!--
         <group>
@@ -13,7 +14,7 @@
         </group>
         -->
       <label>RoboTeam input configurer</label>
-      <icon type="theme">system-help</icon>
+      <icon type="theme">input-keyboard</icon>
       <statustip>Great user interface to provide real value.</statustip>
     </qtgui>
   </class>
