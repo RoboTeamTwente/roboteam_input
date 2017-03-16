@@ -36,7 +36,9 @@ std::vector<SDL_Keycode> const arrowKeys = {
     SDLK_UP,
     SDLK_DOWN,
     SDLK_LEFT,
-    SDLK_RIGHT
+    SDLK_RIGHT,
+    SDLK_z,
+    SDLK_x
 };
 
 b::optional<int> stringToID(std::string idStr) {
@@ -137,7 +139,8 @@ int main(int argc, char* argv[]) {
 RTT Keyboard Joystick
 
 Controls:
-    Arrow keys to steer
+    Arrow keys to steer/drive
+    z/x to strafe left/right
     0-9, a-f to select an ID
     Numpad 4/6 to decrease/increase x velocity
     Numpad 1/3 to decrease/increase angular velocity
@@ -197,6 +200,7 @@ Controls:
     SDL_Event e;
 
     int x_vel = 0;
+    int y_vel = 0;
     int w = 0;
 
     while(!quit && ros::ok()) {
@@ -230,7 +234,11 @@ Controls:
                         w += 1;
                     } else if (key == SDLK_RIGHT) {
                         w -= 1;
-                    } 
+                    } else if (key == SDLK_z) {
+                        y_vel += 1;
+                    } else if (key == SDLK_x) {
+                        y_vel -= 1;
+                    }
                 } else if (key == SDLK_ESCAPE || key == SDLK_q) {
                     quit = true;
                 } else if (key == SDLK_KP_4) {
@@ -268,6 +276,10 @@ Controls:
                         w -= 1;
                     } else if (key == SDLK_RIGHT) {
                         w += 1;
+                    } else if (key == SDLK_z) {
+                        y_vel -= 1;
+                    } else if (key == SDLK_x) {
+                        y_vel += 1;
                     }
                 }
             }
@@ -281,6 +293,7 @@ Controls:
         roboteam_msgs::RobotCommand r;
         r.id = currentID;
         r.x_vel = x_vel * currentVel;
+        r.y_vel = y_vel * currentVel;
         r.w = w * currentW;
 
         robotCommandPub.publish(r);
