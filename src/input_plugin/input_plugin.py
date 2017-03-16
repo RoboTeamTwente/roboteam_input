@@ -49,12 +49,6 @@ class InputPlugin(Plugin):
             self._input_widgets.append(new_input)
             self._widget.layout().addWidget(new_input)
 
-        # self._widget.layout().addStretch()
-
-        # self._widget.setLayout(QtWidgets.QHBoxLayout())
-        # self._id_label = QtWidgets.QLabel("Input LOL!!!!!!")
-        # self._widget.layout().addWidget(self._id_label)
-
         # Add widget to the user interface
         context.add_widget(self._widget)
 

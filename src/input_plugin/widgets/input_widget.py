@@ -33,11 +33,14 @@ class InputWidget(QtWidgets.QFrame):
         self._type_selector = QtWidgets.QComboBox()
         self.layout().addWidget(self._type_selector)
 
-        self._type_selector.currentIndexChanged.connect(self.change_input_type)
-
         self._type_selector.insertItem(0, "xbox")
         self._type_selector.insertItem(0, "playstation")
         self._type_selector.insertItem(0, "gioteck")
+
+        currentJoyType = rospy.get_param(self.get_param_base() + "joyType");
+        self._type_selector.setCurrentIndex(self._type_selector.findText(currentJoyType))
+
+        self._type_selector.currentIndexChanged.connect(self.change_input_type)
 
         # ---- /Type selector ----
 
@@ -55,7 +58,6 @@ class InputWidget(QtWidgets.QFrame):
         self._robot_id_input.textChanged.connect(self.change_bot_id)
 
         # --- /Robot id input ----
-
 
     def get_param_base(self):
         return "input" + str(self._id) + "/"

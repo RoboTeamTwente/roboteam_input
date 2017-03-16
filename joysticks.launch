@@ -4,11 +4,11 @@
 
     <param name="input0/input" value="js0" />
     <param name="input0/robot" value="0" />
-    <param name="input0/joyType" value="gioteck" />
+    <param name="input0/joyType" value="xbox" />
 
     <param name="input1/input" value="js1" />
     <param name="input1/robot" value="1" />
-    <param name="input1/joyType" value="xbox" />
+    <param name="input1/joyType" value="gioteck" />
 
     <param name="input2/input" value="js2" />
     <param name="input2/robot" value="2" />
