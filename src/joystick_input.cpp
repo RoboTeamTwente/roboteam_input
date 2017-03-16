@@ -1,6 +1,7 @@
 #include <string>
 #include <cmath>
 #include <boost/optional.hpp>
+namespace b = boost;
 #include <map>
 
 #include <string>
@@ -54,7 +55,7 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
     }
 };
 
-std::array<sensor_msgs::Joy, NUM_CONTROLLERS> joyMsgs;
+std::array<b::optional<sensor_msgs::Joy>, NUM_CONTROLLERS> joyMsgs;
 
 roboteam_msgs::World lastWorld;
 bool receivedFirstWorldMsg = false;
@@ -140,11 +141,13 @@ double speedValue(const double input) {
 bool kickerhack=false;
 
 roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
+    std::cout << "Sending robotcommand for " << inputNum << "\n";
+
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
     roboteam_msgs::World world = lastWorld;
 
-    const std::string group = "~input" + std::to_string(inputNum);
+    const std::string group = "input" + std::to_string(inputNum);
 
     // Get the joystick type
     std::string joyType = "playstation";
@@ -153,12 +156,12 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
 
     // Get the robot id
     int ROBOT_ID = 5;
-    //ros::param::get(group + "/robot", ROBOT_ID);
+    ros::param::get(group + "/robot", ROBOT_ID);
 
-    Vector2 target_speed = Vector2(
-        -getVal(msg.axes, joystickMap.xAxis),
-        getVal(msg.axes, joystickMap.yAxis)
-    );
+    // Vector2 target_speed = Vector2(
+        // -getVal(msg.axes, joystickMap.xAxis),
+        // getVal(msg.axes, joystickMap.yAxis)
+    // );
 
     /*
     if (target_speed.length() < 0.9) {
@@ -185,13 +188,18 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
     double requiredRotSpeed = rotationController(targetAngle - myAngle);
 
     */
+
     roboteam_msgs::RobotCommand command;
     command.id = ROBOT_ID;
-    command.x_vel = getVal(msg.axes, joystickMap.xAxis)*-4;
-    command.y_vel = getVal(msg.axes, joystickMap.yAxis)*4;
+    command.y_vel = getVal(msg.axes, joystickMap.xAxis)*4;
+    command.x_vel = getVal(msg.axes, joystickMap.yAxis)*4;
 
-    if(abs(command.x_vel) < 0.1){command.x_vel=0;}
-    if(abs(command.y_vel) < 0.1){command.y_vel=0;}
+    if(fabs(command.x_vel) < 0.1) {
+        command.x_vel=0;
+    }
+    if(fabs(command.y_vel) < 0.1) {
+        command.y_vel=0;
+    }
 
     command.w = getVal(msg.axes, joystickMap.rotationXAxis)*2;
     command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
@@ -208,6 +216,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_ms
             kickerhack=true;
         }
     }
+
     return command;
 }
 
@@ -219,61 +228,30 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "roboteam_input");
     ros::NodeHandle n;
 
-    // For each input, construct a subscriber and store it in this vector
-    // If we'd want to switch between inpus based on some topic, this vector
-    // would have to be made global, and subscribers would have to be deleted
-    // from the array and inserted again with proper callbacks.
-    // At the same time, the joy nodes would also have to be (re)configured.
-    // (right now this happens in the launch file roboteam_input.launch)
-    // Right now the joy nodes have no "reconfigure" topics or anything, so
-    // we'd have to write our own joystick code that reads from
-    // /dev/input/js0 et al.
     std::vector<std::unique_ptr<ros::Subscriber>> subscribers;
     for (int i = 0; i < NUM_CONTROLLERS; ++i) {
         // Make a subscriber on the stack
         auto subscriber = n.subscribe<sensor_msgs::Joy>("js" + std::to_string(i), 1, boost::bind(receiveJoyMsg, i, _1));
-        // Construct a copy on the heap
-        std::unique_ptr<ros::Subscriber> subscriberHeap(new ros::Subscriber(subscriber));
-        // Push it on the vector
-        subscribers.push_back(std::move(subscriberHeap));
+        // Construct on the heap and push it on the vector
+        subscribers.emplace_back(new ros::Subscriber(subscriber));
     }
 
     auto world_sub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    // Create world & geom callbacks
-    std::cout << "Waiting for first world_state...\n";
-    while (!receivedFirstWorldMsg) {
-        ros::spinOnce();
-    }
-    std::cout << "got world state \n";
-    // TODO: Right now the roboteam_input's input names (js0, js1) are hardcoded
-    // in the launch file. they should probably also be changeable through an event/topic
-    // However, the joy & joy_node nodes are fixed, so not sure if this is possible
-    // without writing our own joynode code.
-
-    // Flush received messages every 1/30th second
-    ros::Rate fps30(10);
+    ros::Rate fps(10);
 
     while (ros::ok()) {
-        // if (lastWorld.us.size() > 0) {
-            // For every controller...
-            for (int i = 0; i < NUM_CONTROLLERS; ++i) {
-                // If a message is present
-                // if (joyMsgs[i]) {
-                    // Make a command out of it
-                    if(i==4){
-                    roboteam_msgs::RobotCommand command = makeRobotCommand(i, joyMsgs[i]);
-                    // Send it
-                    pub.publish(command);
-                    }
-                    // Reset the element in the array
-                    // joyMsgs[i] = boost::none;
-                // }
+        for (int i = 0; i < NUM_CONTROLLERS; ++i) {
+            if (joyMsgs[i]) {
+                roboteam_msgs::RobotCommand command = makeRobotCommand(i, *joyMsgs[i]);
+                pub.publish(command);
             }
-        // }
+            
+            joyMsgs[i] = boost::none;
+        }
 
-        fps30.sleep();
+        fps.sleep();
 
         ros::spinOnce();
     }

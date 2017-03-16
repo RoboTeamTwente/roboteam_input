@@ -1,24 +1,67 @@
 <launch>
 
-   
+    <node pkg="joy" type="joy_node" name="joy_node_0" >
+        <remap from="joy" to="js0" />
+        <param name="dev" value="/dev/input/js0" />
+        <param name="coalesce_interval" value="0.01" />
+    </node>
 
-    <node pkg="joy" type="joy_node" name="js4" >
+    <node pkg="joy" type="joy_node" name="joy_node_1" >
+        <remap from="joy" to="js1" />
+        <param name="dev" value="/dev/input/js1" />
+        <param name="coalesce_interval" value="0.01" />
+    </node>
+
+    <node pkg="joy" type="joy_node" name="joy_node_2" >
+        <remap from="joy" to="js2" />
+        <param name="dev" value="/dev/input/js2" />
+        <param name="coalesce_interval" value="0.01" />
+    </node>
+
+    <node pkg="joy" type="joy_node" name="joy_node_3" >
+        <remap from="joy" to="js3" />
+        <param name="dev" value="/dev/input/js3" />
+        <param name="coalesce_interval" value="0.01" />
+    </node>
+
+    <node pkg="joy" type="joy_node" name="joy_node_4" >
         <remap from="joy" to="js4" />
         <param name="dev" value="/dev/input/js4" />
         <param name="coalesce_interval" value="0.01" />
     </node>
 
-
+    <node pkg="joy" type="joy_node" name="joy_node_5" >
+        <remap from="joy" to="js5" />
+        <param name="dev" value="/dev/input/js5" />
+        <param name="coalesce_interval" value="0.01" />
+    </node>
 
 	<node pkg="roboteam_input" type="roboteam_input" name="roboteam_input" output="screen">
         <!-- The "input" param in each group is READ ONLY -->
         <!-- TODO: Implement a topic/event s.t. this can be changed by a gui -->
 
+        <!--
         <param name="input1/input" value="js4" />
         <param name="input1/robot" value="5" />
         <param name="input1/joyType" value="gioteck" />
-
+        -->
         
 	</node>
+
+    <param name="input0/input" value="js0" />
+    <param name="input0/robot" value="0" />
+    <param name="input0/joyType" value="gioteck" />
+
+    <param name="input1/input" value="js1" />
+    <param name="input1/robot" value="1" />
+    <param name="input1/joyType" value="xbox" />
+
+    <param name="input2/input" value="js2" />
+    <param name="input2/robot" value="2" />
+    <param name="input2/joyType" value="xbox" />
+
+    <param name="input3/input" value="js3" />
+    <param name="input3/robot" value="3" />
+    <param name="input3/joyType" value="xbox" />
 
 </launch>
