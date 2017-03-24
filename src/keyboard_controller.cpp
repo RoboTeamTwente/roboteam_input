@@ -196,7 +196,7 @@ Controls:
     ros::init(argc, argv, "keyboard_controller");
     ros::NodeHandle n;
     auto robotCommandPub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 100);
-    ros::Rate fps30(30);
+    ros::Rate fpsRate(20);
 
     // Event loop
     bool quit = false;
@@ -324,7 +324,7 @@ Controls:
         robotCommandPub.publish(r);
 
         ros::spinOnce();
-        fps30.sleep();
+        fpsRate.sleep();
 
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         SDL_RenderClear(renderer);
