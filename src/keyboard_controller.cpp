@@ -193,9 +193,10 @@ Controls:
     // TODO: Keep vel in a vector and update accordingly!
 
     // Ros stuff
-    ros::init(argc, argv, "keyboard_controller");
+    ros::init(argc, argv, "keyboard_controller", ros::InitOption::AnonymousName);
     ros::NodeHandle n;
     auto robotCommandPub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 100);
+    // TODO: Maybe base this on role_iterations_per_second?
     ros::Rate fpsRate(20);
 
     // Event loop
