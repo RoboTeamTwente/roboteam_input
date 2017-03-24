@@ -21,9 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
 # sudo apt-get install libsdl2-dev
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(SDL2)
-if (${SDL2_FOUND})
-    include_directories(${SDL2_INCLUDE_DIR})
-endif (${SDL2_FOUND})
+include_directories(${SDL2_INCLUDE_DIR})
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -171,25 +169,21 @@ add_executable(roboteam_input src/joystick_input.cpp)
 target_link_libraries(roboteam_input ${catkin_LIBRARIES})
 add_dependencies(roboteam_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-if (${SDL2_FOUND})
+add_executable(keyboard_controller 
+    src/keyboard_controller.cpp
+    )
+target_link_libraries( keyboard_controller 
+    ${catkin_LIBRARIES}
+    ${SDL2_LIBRARY}
+    )
+add_dependencies(keyboard_controller 
+    ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+    ${catkin_EXPORTED_TARGETS}
+    )
 
-    add_executable(keyboard_controller 
-        src/keyboard_controller.cpp
-        )
-    target_link_libraries( keyboard_controller 
-        ${catkin_LIBRARIES}
-        ${SDL2_LIBRARY}
-        )
-    add_dependencies(keyboard_controller 
-        ${${PROJECT_NAME}_EXPORTED_TARGETS} 
-        ${catkin_EXPORTED_TARGETS}
-        )
 
-else (${SDL2_FOUND})
+MESSAGE("-- SDL2 not found, so cannot build keyboard_controller! Have you installed SDL2?")
 
-    MESSAGE("-- SDL2 not found, so cannot build keyboard_controller! Have you installed SDL2?")
-
-endif (${SDL2_FOUND})
 
 #############
 ## Install ##
