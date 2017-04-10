@@ -132,6 +132,123 @@ void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int cur
     }
 }
 
+struct Direction {
+    void handleEvent(SDL_Event const & e) {
+        if ((e.type == SDL_KEYDOWN  || e.type == SDL_KEYUP) && e.key.repeat == 0) {
+            int modifierInt = 0;
+            bool modifierBool = false;
+            if (e.type == SDL_KEYDOWN) {
+                modifierInt = 1;
+                modifierBool = true;
+            } else {
+                modifierInt = -1;
+                modifierBool = false;
+            } 
+
+            auto key = e.key.keysym.sym;
+
+            if (key == SDLK_UP) {
+                x_vel += modifierInt;
+            } else if (key == SDLK_DOWN) {
+                x_vel -= modifierInt;
+            } else if (key == SDLK_LEFT) {
+                w += modifierInt;
+            } else if (key == SDLK_RIGHT) {
+                w -= modifierInt;
+            } else if (key == KEY_STRAFE_LEFT) {
+                y_vel += modifierInt;
+            } else if (key == KEY_STRAFE_RIGHT) {
+                y_vel -= modifierInt;
+            } else if (key == KEY_DRIBBLE) {
+                doDribble = modifierBool;
+            } else if (key == KEY_KICK) {
+                doKick = modifierBool;
+            } else if (key == KEY_CHIP) {
+                doChip = modifierBool;
+            }
+        } 
+    }
+
+    int x_vel = 0;
+    int y_vel = 0;
+    int w = 0;
+    bool doKick = false;
+    bool doChip = false;
+    bool doDribble = false;
+
+    SDL_Keycode const KEY_STRAFE_LEFT = SDLK_z;
+    SDL_Keycode const KEY_STRAFE_RIGHT = SDLK_x;
+    SDL_Keycode const KEY_DRIBBLE = SDLK_SPACE;
+    SDL_Keycode const KEY_KICK = SDLK_v;
+    SDL_Keycode const KEY_CHIP = SDLK_n;
+} ;
+
+struct Speed {
+    void handleEvent(SDL_Event const & e) {
+        if (e.type == SDL_KEYDOWN) {
+            auto key = e.key.keysym.sym;
+
+            if (key == KEY_INCREASE_VEL) {
+                currentVel += STEP_VEL;
+            } else if (key == KEY_DECREASE_VEL) {
+                currentVel -= STEP_VEL;
+            } else if (key == KEY_INCREASE_W) {
+                currentW += STEP_W;
+            } else if (key == KEY_DECREASE_W) {
+                currentW -= STEP_W;
+            }
+        } 
+
+        if (currentVel > MAX_VEL) currentVel = MAX_VEL;
+        if (currentVel < 0) currentVel = 0;
+        if (currentW > MAX_W) currentW = MAX_W;
+        if (currentW < 0) currentW = 0;
+    }
+
+    double currentVel = 2;
+    double currentW = 2;
+
+    double const STEP_VEL = 0.1;
+    double const STEP_W = 0.1;
+
+    SDL_Keycode const KEY_INCREASE_VEL = SDLK_KP_6;
+    SDL_Keycode const KEY_DECREASE_VEL = SDLK_KP_4;
+    SDL_Keycode const KEY_INCREASE_W = SDLK_KP_3;
+    SDL_Keycode const KEY_DECREASE_W = SDLK_KP_1;
+} ;
+
+roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & speed, Direction const & direction) {
+    roboteam_msgs::RobotCommand r;
+    r.id = currentID;
+    r.x_vel = direction.x_vel * speed.currentVel;
+    r.y_vel = direction.y_vel * speed.currentVel;
+    r.w = direction.w * speed.currentW;
+
+    if (direction.doKick) {
+        r.kicker = true;
+        r.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
+        r.kicker_forced = true;
+    } else if (direction.doChip) {
+        r.chipper = true;
+        r.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
+        r.chipper_forced= true;
+    }
+
+    r.dribbler = direction.doDribble;
+
+    return r;
+}
+
+bool isCtrlPressed(SDL_Event const e) {
+    if (e.type == SDL_KEYDOWN) {
+        if ((e.key.keysym.mod & KMOD_CTRL) > 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 }
 
 int main(int argc, char* argv[]) {
@@ -187,11 +304,9 @@ Controls:
     robotIDAllKeys.insert(robotIDAllKeys.end(), robotIDLetterKeys.begin(), robotIDLetterKeys.end());
 
     int currentID = 5;
-    double currentVel = 2;
-    double currentW = 2;
-
-    // TODO: Keep vel in a vector and update accordingly!
-
+    Speed speed;
+    Direction direction;
+    
     // Ros stuff
     ros::init(argc, argv, "keyboard_controller", ros::InitOption::AnonymousName);
     ros::NodeHandle n;
@@ -203,134 +318,53 @@ Controls:
     bool quit = false;
     SDL_Event e;
 
-    int x_vel = 0;
-    int y_vel = 0;
-    int w = 0;
-    bool doKick = false;
-    bool doChip = false;
-    bool doDribble = false;
-
     while(!quit && ros::ok()) {
-
         while(SDL_PollEvent(&e) != 0) {
             if ( e.type == SDL_QUIT ) {
                 quit = true;
-            } else if (e.type == SDL_KEYDOWN && e.key.repeat == 0) {
-                auto key = e.key.keysym.sym;
-
-                if ((e.key.keysym.mod & KMOD_CTRL) > 0) {
-                    if (key == SDLK_c) {
-                        quit = true;
-                    }
-                } else if (std::find(robotIDAllKeys.begin(), robotIDAllKeys.end(), key) != robotIDAllKeys.end()) {
-                    // ID key!
-                    if (auto currentIDOpt = stringToID(SDL_GetKeyName(key))) {
-                        currentID = *currentIDOpt;
-                        std::cout << "Current ID: " << currentID << "\n";
-                    } else {
-                        std::cout << "Bad ID key pressed, retaining original ID.";
-                    };
-                } else if (std::find(arrowKeys.begin(), arrowKeys.end(), key) != arrowKeys.end()) {
-                    // Arrow key!
-
-                    if (key == SDLK_UP) {
-                        x_vel += 1;
-                    } else if (key == SDLK_DOWN) {
-                        x_vel -= 1;
-                    } else if (key == SDLK_LEFT) {
-                        w += 1;
-                    } else if (key == SDLK_RIGHT) {
-                        w -= 1;
-                    } else if (key == SDLK_z) {
-                        y_vel += 1;
-                    } else if (key == SDLK_x) {
-                        y_vel -= 1;
-                    }
-                } else if (key == SDLK_ESCAPE || key == SDLK_q) {
-                    quit = true;
-                } else if (key == SDLK_KP_4) {
-                    currentVel -= 0.1;
-                } else if (key == SDLK_KP_6) {
-                    currentVel += 0.1;
-                } else if (key == SDLK_KP_1) {
-                    currentW -= 0.3;
-                } else if (key == SDLK_KP_3) {
-                    currentW += 0.3;
-                } else if (key == SDLK_v) {
-                    doKick = true;
-                } else if (key == SDLK_n) {
-                    doChip = true;
-                } else if (key == SDLK_SPACE) {
-                    doDribble = true;
-                }
             } else if (e.type == SDL_KEYDOWN) {
                 auto key = e.key.keysym.sym;
 
-                if (key == SDLK_KP_4) {
-                    currentVel -= 0.1;
-                } else if (key == SDLK_KP_6) {
-                    currentVel += 0.1;
-                } else if (key == SDLK_KP_1) {
-                    currentW -= 0.3;
-                } else if (key == SDLK_KP_3) {
-                    currentW += 0.3;
+                // Handle ctrl-c
+                if (isCtrlPressed(e) && key == SDLK_c) {
+                    quit = true;
                 }
-            } else if (e.type == SDL_KEYUP) {
-                auto key = e.key.keysym.sym;
-
-                if (key == SDLK_UP) {
-                    x_vel -= 1;
-                } else if (key == SDLK_DOWN) {
-                    x_vel += 1;
-                } else if (key == SDLK_LEFT) {
-                    w -= 1;
-                } else if (key == SDLK_RIGHT) {
-                    w += 1;
-                } else if (key == SDLK_z) {
-                    y_vel -= 1;
-                } else if (key == SDLK_x) {
-                    y_vel += 1;
-                } else if (key == SDLK_SPACE) {
-                    doDribble = false;
+                
+                // Handle escape & q
+                if (key == SDLK_ESCAPE || key == SDLK_q) {
+                    quit = true;
                 }
+                
+                // Handle ID switching
+                if (std::find(robotIDAllKeys.begin(), robotIDAllKeys.end(), key) != robotIDAllKeys.end()) {
+                    if (!(key == SDLK_c && isCtrlPressed(e))) {
+                        if (auto currentIDOpt = stringToID(SDL_GetKeyName(key))) {
+                            currentID = *currentIDOpt;
+                        } else {
+                            std::cout << "Bad ID key pressed, retaining original ID.";
+                        }
+                    }
+                } 
             }
+            
+            // Handle speed & direction
+            speed.handleEvent(e);
+            direction.handleEvent(e);
         }
 
-        if (currentVel > MAX_VEL) currentVel = MAX_VEL;
-        if (currentVel < 0) currentVel = 0;
-        if (currentW > MAX_W) currentW = MAX_W;
-        if (currentW < 0) currentW = 0;
+        // Publish a robot instruction
+        robotCommandPub.publish(makeRobotCommand(currentID, speed, direction));
 
-        roboteam_msgs::RobotCommand r;
-        r.id = currentID;
-        r.x_vel = x_vel * currentVel;
-        r.y_vel = y_vel * currentVel;
-        r.w = w * currentW;
-
-        if (doKick) {
-            r.kicker = true;
-            r.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
-            r.kicker_forced = true;
-        } else if (doChip) {
-            r.chipper = true;
-            r.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
-            r.chipper_forced= true;
-        }
-
-        doKick = false;
-        doChip = false;
-
-        r.dribbler = doDribble;
-
-        robotCommandPub.publish(r);
-
+        // Wait s.t. we don't burn cycles
         ros::spinOnce();
         fpsRate.sleep();
 
+        // Make the screen red
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        drawGui(renderer, currentVel, currentW, currentID);
+        // Draw the gui and refresh the screen
+        drawGui(renderer, speed.currentVel, speed.currentW, currentID);
         SDL_RenderPresent(renderer);
     }
 
