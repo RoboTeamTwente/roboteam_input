@@ -205,8 +205,8 @@ struct Speed {
         if (currentW < 0) currentW = 0;
     }
 
-    double currentVel = 2;
-    double currentW = 2;
+    double currentVel = 1;
+    double currentW = 5;
 
     double const STEP_VEL = 0.1;
     double const STEP_W = 0.1;
@@ -306,7 +306,7 @@ Controls:
     int currentID = 5;
     Speed speed;
     Direction direction;
-    
+
     // Ros stuff
     ros::init(argc, argv, "keyboard_controller", ros::InitOption::AnonymousName);
     ros::NodeHandle n;
