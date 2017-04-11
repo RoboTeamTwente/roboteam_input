@@ -24,6 +24,13 @@ struct JoystickMap {
     int rotationYAxis;
     int dribblerAxis;
     int kickerAxis;
+
+
+    // These two are needed because the gioteck has a button (i.e. 0/1 input) for the right trigger,
+    // while the right trigger of the xbox is continuus (i.e. -30000 when depressed and +30000 when pressed)
+    // I hate the real world
+    int chipperAxis;
+    int chipperContinuousAxis;
 } ;
 
 const int NUM_CONTROLLERS = 4;
@@ -31,20 +38,24 @@ const int NUM_CONTROLLERS = 4;
 const std::map<std::string, JoystickMap> joystickTypeMap = {
     {
         {"xbox", {
-            0, // xAxis
-            1, // yAxis
-            3, // rotationXAxis
-            4, // rotationYAxis
-            4, // dribblerAxis
-            5 // kickerAxis
+            0,  // xAxis
+            1,  // yAxis
+            3,  // rotationXAxis
+            4,  // rotationYAxis
+            4,  // dribblerAxis
+            5,  // kickerAxis
+            -1, // chipperAxis
+            5   // chipperContinuousAxis
         }},
         {"playstation", {
-            0, // xAxis
-            1, // yAxis
-            2, // rotationXAxis
-            3, // rotationYAxis
+            0,  // xAxis
+            1,  // yAxis
+            2,  // rotationXAxis
+            3,  // rotationYAxis
             10, // dribblerAxiscatkin
-            11 // kickerAxis
+            11, // kickerAxis
+            -1, // chipperAxis
+            5   // chipperContinuousAxis
         }},
         {"gioteck", {
             0, // yAxis
@@ -52,7 +63,9 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
             2, // rotationXAxis
             3, // rotationYAxis
             4, // dribblerAxis
-            5 // kickerAxis
+            5, // kickerAxis
+            7, // chipperAxis
+            -1 // chipperContinuousAxis
         }}
     }
 };
@@ -294,15 +307,30 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
 
     //command.dribbler = true;
     command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
-    if (command.kicker) { std::cout << "kicker command";
+    if (command.kicker) { 
+        std::cout << "[RobotHub] Kicker command\n";
+        command.kicker_forced = true;
+
         if(kickerhack){
-            command.kicker_vel=4.0;
+            command.kicker_vel = 4.0;
             kickerhack=false;
-        }
-        else {
+        } else {
             command.kicker_vel = 5.0;
             kickerhack=true;
         }
+    }
+
+    if (joystickMap.chipperAxis != -1) {
+        command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
+    } else if (joystickMap.chipperContinuousAxis != -1) {
+        std::cout << "Continuous value: " << getVal(msg.axes, joystickMap.chipperContinuousAxis);
+        command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
+    }
+
+    if (command.chipper) {
+        std::cout << "[RobotHub] Chipper command\n";
+        command.chipper_forced = true;
+        command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
     }
 
     return command;
