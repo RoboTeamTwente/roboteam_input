@@ -187,8 +187,8 @@ Controls:
     robotIDAllKeys.insert(robotIDAllKeys.end(), robotIDLetterKeys.begin(), robotIDLetterKeys.end());
 
     int currentID = 5;
-    double currentVel = 2;
-    double currentW = 2;
+    double currentVel = 1;
+    double currentW = 5;
 
     // TODO: Keep vel in a vector and update accordingly!
 
