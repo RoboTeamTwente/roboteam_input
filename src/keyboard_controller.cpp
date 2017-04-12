@@ -173,6 +173,7 @@ struct Direction {
     int y_vel = 0;
     int w = 0;
     bool doKick = false;
+    bool enKick = false;
     bool doChip = false;
     bool doDribble = false;
 
@@ -227,11 +228,11 @@ roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & 
     if (direction.doKick) {
         r.kicker = true;
         r.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
-        r.kicker_forced = true;
+        // r.kicker_forced = true;
     } else if (direction.doChip) {
         r.chipper = true;
         r.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
-        r.chipper_forced= true;
+        // r.chipper_forced= true;
     }
 
     r.dribbler = direction.doDribble;
