@@ -14,6 +14,7 @@ namespace bp = ::boost::process;
 #include "roboteam_utils/Vector2.h"
 #include <typeinfo>
 #include <cmath>
+#include "roboteam_utils/world_analysis.h"
 
 namespace rtt {
 
@@ -24,6 +25,12 @@ struct JoystickMap {
     int rotationYAxis;
     int dribblerAxis;
     int kickerAxis;
+    
+    // These two are needed because the gioteck has a button (i.e. 0/1 input) for the right trigger,
+    // while the right trigger of the xbox is continuus (i.e. -30000 when depressed and +30000 when pressed)
+    // I hate the real world
+    int chipperAxis;
+    int chipperContinuousAxis;
 } ;
 
 const int NUM_CONTROLLERS = 4;
@@ -31,20 +38,24 @@ const int NUM_CONTROLLERS = 4;
 const std::map<std::string, JoystickMap> joystickTypeMap = {
     {
         {"xbox", {
-            0, // xAxis
-            1, // yAxis
-            3, // rotationXAxis
-            4, // rotationYAxis
-            4, // dribblerAxis
-            5 // kickerAxis
+            0,  // xAxis
+            1,  // yAxis
+            3,  // rotationXAxis
+            4,  // rotationYAxis
+            4,  // dribblerAxis
+            5,  // kickerAxis
+            -1, // chipperAxis
+            5   // chipperContinuousAxis
         }},
         {"playstation", {
-            0, // xAxis
-            1, // yAxis
-            2, // rotationXAxis
-            3, // rotationYAxis
+            0,  // xAxis
+            1,  // yAxis
+            2,  // rotationXAxis
+            3,  // rotationYAxis
             10, // dribblerAxiscatkin
-            11 // kickerAxis
+            11, // kickerAxis
+            -1, // chipperAxis
+            5   // chipperContinuousAxis
         }},
         {"gioteck", {
             0, // yAxis
@@ -52,7 +63,9 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
             2, // rotationXAxis
             3, // rotationYAxis
             4, // dribblerAxis
-            5 // kickerAxis
+            5, // kickerAxis
+            7, // chipperAxis
+            -1 // chipperContinuousAxis
         }}
     }
 };
@@ -167,32 +180,56 @@ double cleanAngle(double angle){
     }
 }
 
+Vector2 prevPosError;
+Vector2 integrator;
+
 Vector2 positionController(Vector2 posError) {
     double maxSpeed = 2.0;
-    double pGain = 2.0;
+
+    double pGain = 2;
+    double dGain = 4;
+    double iGain = 0.001;
+
+    integrator = integrator + posError;
+
     Vector2 requiredSpeed = posError*pGain;
+    requiredSpeed = requiredSpeed + (posError - prevPosError) * dGain;
+    requiredSpeed = requiredSpeed + integrator * iGain;
+
+    prevPosError = posError;
+
+    if (requiredSpeed.length() > 1) {
+        requiredSpeed = requiredSpeed.normalize();
+    }
 
     // Slow down once we get close to the goal, otherwise go at maximum speed
-    if (posError.length() > 0.5) { // TODO: compute this distance depending on the maximum speed, so that there is no overshoot
-        if (requiredSpeed.length() > 0) {
-            requiredSpeed = requiredSpeed.scale(1/requiredSpeed.length() * maxSpeed);
-        } else {
-            requiredSpeed = Vector2(0.0, 0.0);
-        }
-    }
+    // if (posError.length() > 0.5) { // TODO: compute this distance depending on the maximum speed, so that there is no overshoot
+        // if (requiredSpeed.length() > 0) {
+            // requiredSpeed = requiredSpeed.scale(1/requiredSpeed.length() * maxSpeed);
+        // } else {
+            // requiredSpeed = Vector2(0.0, 0.0);
+        // }
+    // }
     return requiredSpeed;
 }
 
+double prevAngleError = 0;
+
 double rotationController(double angleError) {
-    double pGainRot = 6.0;
+    double pGainRot = 4.0;
+    double dGainRot = 2.0;
     double maxRotSpeed = 7.0;
 
     angleError = cleanAngle(angleError);
     double requiredRotSpeed = angleError * pGainRot;
+    requiredRotSpeed += (angleError - prevAngleError) * dGainRot;
 
-    if (fabs(requiredRotSpeed) > maxRotSpeed) {
-        requiredRotSpeed = requiredRotSpeed / fabs(requiredRotSpeed) * maxRotSpeed;
-    }
+    prevAngleError = angleError;
+
+    // if (fabs(requiredRotSpeed) > maxRotSpeed) {
+        // requiredRotSpeed = requiredRotSpeed / fabs(requiredRotSpeed) * maxRotSpeed;
+    // }
+
     return requiredRotSpeed;
 }
 
@@ -264,7 +301,6 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
     Vector2 requiredSpeed = positionController(target_speed);
     Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, myAngle);
 
-
     Vector2 myPos(world.us.at(ROBOT_ID).pos);
     Vector2 ballPos(world.ball.pos);
     double distanceToBall = (ballPos - myPos).length();
@@ -294,16 +330,125 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
 
     //command.dribbler = true;
     command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
-    if (command.kicker) { std::cout << "kicker command";
+    if (command.kicker) { 
+        std::cout << "[RobotHub] Kicker command\n";
+        command.kicker_forced = true;
+
         if(kickerhack){
-            command.kicker_vel=4.0;
+            command.kicker_vel = 4.0;
             kickerhack=false;
-        }
-        else {
+        } else {
             command.kicker_vel = 5.0;
             kickerhack=true;
         }
     }
+
+    if (joystickMap.chipperAxis != -1) {
+        command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
+    } else if (joystickMap.chipperContinuousAxis != -1) {
+        std::cout << "Continuous value: " << getVal(msg.axes, joystickMap.chipperContinuousAxis);
+        command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
+    }
+
+    if (command.chipper) {
+        std::cout << "[RobotHub] Chipper command\n";
+        command.chipper_forced = true;
+        command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
+    }
+
+    return command;
+}
+
+Vector2 keeperPos(0, 0);
+
+roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
+    std::cout << "Sending robotcommand for " << joy.MY_ID << "\n";
+
+    // Everything is within the roboteam_input node, in groups going from
+    // input0 to inputN.
+    roboteam_msgs::World world = lastWorld;
+
+    // const std::string group = "input" + std::to_string(inputNum);
+
+    // Get the joystick type
+    // std::string joyType = "playstation";
+    // ros::param::get(group + "/joyType", joyType);
+    const JoystickMap &joystickMap = joystickTypeMap.at(joy.joyType);
+
+    // Get the robot id
+    int ROBOT_ID = joy.robotID;
+    // ros::param::get(group + "/robot", ROBOT_ID);
+
+    // Vector2 target_speed = Vector2(
+        // -getVal(msg.axes, joystickMap.xAxis),
+        // getVal(msg.axes, joystickMap.yAxis)
+    // );
+    
+    std::cout << "Axis val: " << getVal(msg.axes, joystickMap.xAxis) << "\n";
+
+    keeperPos.x += getVal(msg.axes, joystickMap.xAxis) * 1/10 * 1;
+
+    std::cout << "Aiming for keeperPos: " << keeperPos << "\n";
+
+    roboteam_msgs::WorldRobot robot;
+
+    if (auto robotOpt = lookup_our_bot(ROBOT_ID, &world)) {
+        robot = *robotOpt;
+    } else {
+        roboteam_msgs::RobotCommand r;
+        r.id = ROBOT_ID;
+        std::cout << "Not found!\n";
+        return r;
+    }
+
+    Vector2 currentPos = robot.pos;
+
+    double targetAngle;
+
+    Vector2 requiredSpeed = positionController(keeperPos - currentPos);
+    Vector2 requiredSpeedWF = worldToRobotFrame(requiredSpeed, robot.angle);
+
+    targetAngle = (Vector2(world.ball.pos) - currentPos).angle();
+
+    double requiredRotSpeed = rotationController(targetAngle - robot.angle);
+
+    roboteam_msgs::RobotCommand command;
+    command.id = ROBOT_ID;
+    command.y_vel = requiredSpeedWF.y;
+    command.x_vel = requiredSpeedWF.x;
+
+    command.w = requiredRotSpeed;
+    command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
+
+    //command.dribbler = true;
+    command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
+    if (command.kicker) { 
+        std::cout << "[RobotHub] Kicker command\n";
+        command.kicker_forced = true;
+
+        if(kickerhack){
+            command.kicker_vel = 4.0;
+            kickerhack=false;
+        } else {
+            command.kicker_vel = 5.0;
+            kickerhack=true;
+        }
+    }
+
+    if (joystickMap.chipperAxis != -1) {
+        command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
+    } else if (joystickMap.chipperContinuousAxis != -1) {
+        std::cout << "Continuous value: " << getVal(msg.axes, joystickMap.chipperContinuousAxis);
+        command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
+    }
+
+    if (command.chipper) {
+        std::cout << "[RobotHub] Chipper command\n";
+        command.chipper_forced = true;
+        command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
+    }
+
+    std::cout << "Final command: " << command << "\n";
 
     return command;
 }
@@ -319,7 +464,7 @@ int main(int argc, char **argv) {
     auto world_sub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    ros::Rate fps(10);
+    ros::Rate fps(60);
 
     while (ros::ok()) {
         for (auto& joy : joys) {
@@ -330,7 +475,7 @@ int main(int argc, char **argv) {
                 pub.publish(command);
             }
             
-            joy.msg = boost::none;
+            // joy.msg = boost::none;
         }
 
         fps.sleep();
