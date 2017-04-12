@@ -266,8 +266,6 @@ double speedValue(const double input) {
 bool kickerhack=false;
 
 roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
-    std::cout << "Sending robotcommand for " << joy.MY_ID << "\n";
-
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
     roboteam_msgs::World world = lastWorld;
@@ -359,11 +357,12 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
     return command;
 }
 
-Vector2 keeperPos(0, 0);
+// TODO: Probably want to make a small class/struct for this
+// TODO: Same goes for the PID controller
+double keeperDir = M_PI * 0.5;
+double keeperDist = 0.5;
 
 roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
-    std::cout << "Sending robotcommand for " << joy.MY_ID << "\n";
-
     // Everything is within the roboteam_input node, in groups going from
     // input0 to inputN.
     roboteam_msgs::World world = lastWorld;
@@ -377,18 +376,20 @@ roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::J
 
     // Get the robot id
     int ROBOT_ID = joy.robotID;
-    // ros::param::get(group + "/robot", ROBOT_ID);
-
-    // Vector2 target_speed = Vector2(
-        // -getVal(msg.axes, joystickMap.xAxis),
-        // getVal(msg.axes, joystickMap.yAxis)
-    // );
     
-    std::cout << "Axis val: " << getVal(msg.axes, joystickMap.xAxis) << "\n";
+    int const FPS = 60;
+    // TODO: This should be m/s, not rads. Now if you're far away you will go faster!
+    double radsPerSecond = 0.5;
+    keeperDir -= getVal(msg.axes, joystickMap.xAxis) * (radsPerSecond * (2 * M_PI)) * (1.0 / FPS);
+    keeperDist += getVal(msg.axes, joystickMap.yAxis) * (radsPerSecond * (2 * M_PI)) * (1.0 / FPS);
 
-    keeperPos.x += getVal(msg.axes, joystickMap.xAxis) * 1/10 * 1;
+    if (keeperDir < 0) keeperDir = 0;
+    if (keeperDir > M_PI) keeperDir = M_PI;
+    if (keeperDist < 0.1) keeperDist = 0.1;
+    if (keeperDist > 2) keeperDist = 2;
 
-    std::cout << "Aiming for keeperPos: " << keeperPos << "\n";
+    Vector2 keeperPos = Vector2(keeperDist, 0).rotate((M_PI - keeperDir) - (0.5 * M_PI));
+    keeperPos = keeperPos + Vector2(-4.5, 0);
 
     roboteam_msgs::WorldRobot robot;
 
@@ -397,7 +398,7 @@ roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::J
     } else {
         roboteam_msgs::RobotCommand r;
         r.id = ROBOT_ID;
-        std::cout << "Not found!\n";
+        std::cout << "[RobotHub] Keeper robot with id " << ROBOT_ID << " not found\n";
         return r;
     }
 
@@ -417,7 +418,8 @@ roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::J
     command.y_vel = requiredSpeedWF.y;
     command.x_vel = requiredSpeedWF.x;
 
-    command.w = requiredRotSpeed;
+    // command.w = requiredRotSpeed;
+    command.w = getVal(msg.axes, joystickMap.rotationXAxis)*2;
     command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
 
     //command.dribbler = true;
@@ -438,7 +440,6 @@ roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::J
     if (joystickMap.chipperAxis != -1) {
         command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
     } else if (joystickMap.chipperContinuousAxis != -1) {
-        std::cout << "Continuous value: " << getVal(msg.axes, joystickMap.chipperContinuousAxis);
         command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
     }
 
@@ -447,8 +448,6 @@ roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::J
         command.chipper_forced = true;
         command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
     }
-
-    std::cout << "Final command: " << command << "\n";
 
     return command;
 }
@@ -471,7 +470,8 @@ int main(int argc, char **argv) {
             joy.update();
 
             if (joy.msg) {
-                auto command = makeRobotCommand(joy, *joy.msg);
+                // TODO: Make it parameter configurable whether or not keeper is on
+                auto command = makeKeeperRobotCommand(joy, *joy.msg);
                 pub.publish(command);
             }
             
