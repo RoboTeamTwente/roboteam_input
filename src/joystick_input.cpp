@@ -471,7 +471,7 @@ int main(int argc, char **argv) {
 
             if (joy.msg) {
                 // TODO: Make it parameter configurable whether or not keeper is on
-                auto command = makeKeeperRobotCommand(joy, *joy.msg);
+                auto command = makeRobotCommand(joy, *joy.msg);
                 pub.publish(command);
             }
             
