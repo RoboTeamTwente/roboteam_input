@@ -374,7 +374,7 @@ roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::J
         targetAngles[joy.MY_ID] = robot.angle;
     }
 
-    targetAngles[joy.MY_ID] += getVal(msg.axes, joystickMap.rotationXAxis) * (2 * M_PI) * 1 * (1.0 / FPS);
+    targetAngles[joy.MY_ID] += getVal(msg.axes, joystickMap.rotationXAxis) * (2 * M_PI) * 0.6 * (1.0 / FPS);
 
     double requiredW = angleControllers[joy.MY_ID].rotationController(robot.angle, targetAngles[joy.MY_ID]);
 
