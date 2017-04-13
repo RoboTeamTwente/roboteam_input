@@ -257,8 +257,6 @@ Vector2 worldToRobotFrame(Vector2 requiredv, double rotation) {
 	return robotRequiredv;
 }
 
-std::map<int, double> lastAngles;
-
 template <
     typename T
 >
