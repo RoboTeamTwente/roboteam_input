@@ -11,6 +11,8 @@ namespace bp = ::boost::process;
 #include "sensor_msgs/Joy.h"
 #include "roboteam_msgs/RobotCommand.h"
 #include "roboteam_msgs/World.h"
+#include "roboteam_msgs/GeometryFieldSize.h"
+#include "roboteam_msgs/GeometryData.h"
 #include "roboteam_utils/Vector2.h"
 #include <typeinfo>
 #include <cmath>
@@ -139,7 +141,6 @@ struct JoyEntry {
     void receiveJoyMsg(const sensor_msgs::JoyConstPtr& msg) {
         // Only store the newest messages
         this->msg = *msg;
-        std::cout << "Received a joy message for " << MY_ID << "\n";
     }
 
     void update() {
@@ -168,6 +169,14 @@ bool receivedFirstWorldMsg = false;
 void callback_world_state(const roboteam_msgs::WorldConstPtr& world) {
     lastWorld = *world;
     receivedFirstWorldMsg = true;
+}
+
+roboteam_msgs::GeometryFieldSize lastField;
+bool receivedFirstGeomMsg = false;
+void callback_world_geometry(const roboteam_msgs::GeometryDataConstPtr& geom) {
+    lastField = geom->field;
+
+    receivedFirstGeomMsg = true;
 }
 
 double cleanAngle(double angle){
@@ -344,7 +353,6 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
     if (joystickMap.chipperAxis != -1) {
         command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
     } else if (joystickMap.chipperContinuousAxis != -1) {
-        std::cout << "Continuous value: " << getVal(msg.axes, joystickMap.chipperContinuousAxis);
         command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
     }
 
@@ -389,7 +397,7 @@ roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::J
     if (keeperDist > 2) keeperDist = 2;
 
     Vector2 keeperPos = Vector2(keeperDist, 0).rotate((M_PI - keeperDir) - (0.5 * M_PI));
-    keeperPos = keeperPos + Vector2(-4.5, 0);
+    keeperPos = keeperPos + Vector2(lastField.field_length / -2, 0);
 
     roboteam_msgs::WorldRobot robot;
 
@@ -460,7 +468,8 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "roboteam_input");
     ros::NodeHandle n;
 
-    auto world_sub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
+    auto worldSub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
+    auto geomSub = n.subscribe<roboteam_msgs::GeometryData>("vision_geometry", 1, callback_world_geometry);
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
     ros::Rate fps(60);
@@ -471,7 +480,7 @@ int main(int argc, char **argv) {
 
             if (joy.msg) {
                 // TODO: Make it parameter configurable whether or not keeper is on
-                auto command = makeRobotCommand(joy, *joy.msg);
+                auto command = makeKeeperRobotCommand(joy, *joy.msg);
                 pub.publish(command);
             }
             
