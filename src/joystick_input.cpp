@@ -334,9 +334,6 @@ public:
     UserKeeperController(double speed = 2.0) : speed{speed} {}
 
     double speed;
-    double keeperSpan = 0;
-    double keeperDist = 0.5;
-    RobotPosController controller;
 
     roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
         roboteam_msgs::World world = lastWorld;
@@ -350,20 +347,12 @@ public:
         double const FIELD_W = lastField.field_width;
         double const FIELD_L = lastField.field_length ;
 
-        // Distance from goal forward
-        keeperDist += getVal(msg.axes, joystickMap.yAxis) * (speed * (1.0 / FPS));
+        double keeperYVel = getVal(msg.axes, joystickMap.yAxis) * speed;
 
         //Disance from goal sideways
-        keeperSpan += getVal(msg.axes, joystickMap.xAxis) * (speed * (1.0 / FPS));
+        double keeperXVel = getVal(msg.axes, joystickMap.xAxis) * speed;
 
-        if (keeperSpan < -FIELD_W / 2) keeperSpan = -FIELD_W / 2;
-        if (keeperSpan > FIELD_W / 2) keeperSpan = FIELD_W / 2;
-        if (keeperDist < -FIELD_L / 2) keeperDist = -FIELD_L / 2;
-        if (keeperDist > FIELD_L / 2) keeperDist = FIELD_L / 2;
-
-        Vector2 keeperPos = Vector2(keeperDist, keeperSpan);
-
-        keeperPos = keeperPos + Vector2(lastField.field_length / -2, 0);
+        Vector2 keeperPos = Vector2(keeperYVel, keeperXVel);
 
         roboteam_msgs::WorldRobot robot;
 
@@ -376,7 +365,7 @@ public:
             return r;
         }
 
-        Vector2 requiredSpeed = worldToRobotFrame(controller.positionController(robot.pos, keeperPos), robot.angle);
+        Vector2 requiredSpeed = worldToRobotFrame(keeperPos, robot.angle);
 
         roboteam_msgs::RobotCommand command;
         command.id = ROBOT_ID;
@@ -438,7 +427,7 @@ int main(int argc, char **argv) {
 
             if (joy.msg) {
                 // TODO: Make it parameter configurable whether or not keeper is on
-                auto command = makeRobotCommand(joy, *joy.msg);
+                auto command = keeperController.makeRobotCommand(joy, *joy.msg);
                 pub.publish(command);
             }
             
