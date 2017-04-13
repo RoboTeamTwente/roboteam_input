@@ -81,6 +81,7 @@ struct JoyEntry {
     std::string input;
     int robotID;
     std::string joyType;
+    std::string mode;
 
     static int intSupplier;
     int const MY_ID;
@@ -147,16 +148,20 @@ struct JoyEntry {
         std::string newInput;
         int newRobotID = -1;
         std::string newJoyType;
+        std::string newMode;
 
         ros::param::get("input" + std::to_string(MY_ID) + "/input", newInput);
         ros::param::get("input" + std::to_string(MY_ID) + "/robot", newRobotID);
         ros::param::get("input" + std::to_string(MY_ID) + "/joyType", newJoyType);
+        ros::param::get("input" + std::to_string(MY_ID) + "/mode", newMode);
 
         setToInput(newInput);
 
         robotID = newRobotID;
 
         joyType = newJoyType;
+
+        mode = newMode;
     }
 } ;
 
@@ -220,7 +225,7 @@ public:
 
     double rotationController(double angle, double target) {
         double pGainRot = 4.0;
-        double dGainRot = 2.0;
+        double dGainRot = 6.0;
         double maxRotSpeed = 7.0;
 
         auto angleError = target - angle;
@@ -328,82 +333,87 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
     return command;
 }
 
-class UserKeeperController {
-public:
+double keeperSpeed = 2.0;
 
-    UserKeeperController(double speed = 2.0) : speed{speed} {}
+std::map<int, RobotPosController> angleControllers;
+std::map<int, double> targetAngles;
 
-    double speed;
+roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
+    roboteam_msgs::World world = lastWorld;
 
-    roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
-        roboteam_msgs::World world = lastWorld;
+    const JoystickMap &joystickMap = joystickTypeMap.at(joy.joyType);
 
-        const JoystickMap &joystickMap = joystickTypeMap.at(joy.joyType);
+    // Get the robot id
+    int ROBOT_ID = joy.robotID;
+    
+    int const FPS = 60;
+    double const FIELD_W = lastField.field_width;
+    double const FIELD_L = lastField.field_length ;
 
-        // Get the robot id
-        int ROBOT_ID = joy.robotID;
-        
-        int const FPS = 60;
-        double const FIELD_W = lastField.field_width;
-        double const FIELD_L = lastField.field_length ;
+    double keeperYVel = getVal(msg.axes, joystickMap.yAxis) * keeperSpeed;
 
-        double keeperYVel = getVal(msg.axes, joystickMap.yAxis) * speed;
+    //Disance from goal sideways
+    double keeperXVel = getVal(msg.axes, joystickMap.xAxis) * keeperSpeed;
 
-        //Disance from goal sideways
-        double keeperXVel = getVal(msg.axes, joystickMap.xAxis) * speed;
+    Vector2 keeperPos = Vector2(keeperYVel, keeperXVel);
 
-        Vector2 keeperPos = Vector2(keeperYVel, keeperXVel);
+    roboteam_msgs::WorldRobot robot;
 
-        roboteam_msgs::WorldRobot robot;
-
-        if (auto robotOpt = lookup_our_bot(ROBOT_ID, &world)) {
-            robot = *robotOpt;
-        } else {
-            roboteam_msgs::RobotCommand r;
-            r.id = ROBOT_ID;
-            std::cout << "[RobotHub] Keeper robot with id " << ROBOT_ID << " not found\n";
-            return r;
-        }
-
-        Vector2 requiredSpeed = worldToRobotFrame(keeperPos, robot.angle);
-
-        roboteam_msgs::RobotCommand command;
-        command.id = ROBOT_ID;
-        command.y_vel = requiredSpeed.y;
-        command.x_vel = requiredSpeed.x;
-
-        command.w = getVal(msg.axes, joystickMap.rotationXAxis)*2;
-        command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
-
-        command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
-        if (command.kicker) { 
-            std::cout << "[RobotHub] Kicker command\n";
-            command.kicker_forced = true;
-
-            if(kickerhack){
-                command.kicker_vel = 4.0;
-                kickerhack=false;
-            } else {
-                command.kicker_vel = 5.0;
-                kickerhack=true;
-            }
-        }
-
-        if (joystickMap.chipperAxis != -1) {
-            command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
-        } else if (joystickMap.chipperContinuousAxis != -1) {
-            command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
-        }
-
-        if (command.chipper) {
-            std::cout << "[RobotHub] Chipper command\n";
-            command.chipper_forced = true;
-            command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
-        }
-
-        return command;
+    if (auto robotOpt = lookup_our_bot(ROBOT_ID, &world)) {
+        robot = *robotOpt;
+    } else {
+        roboteam_msgs::RobotCommand r;
+        r.id = ROBOT_ID;
+        std::cout << "[RobotHub] Keeper robot with id " << ROBOT_ID << " not found\n";
+        return r;
     }
-} ;
+
+    Vector2 requiredSpeed = worldToRobotFrame(keeperPos, robot.angle);
+
+    if (targetAngles.find(joy.MY_ID) == targetAngles.end()) {
+        targetAngles[joy.MY_ID] = robot.angle;
+    }
+
+    targetAngles[joy.MY_ID] += getVal(msg.axes, joystickMap.rotationXAxis) * (2 * M_PI) * 1 * (1.0 / FPS);
+
+    double requiredW = angleControllers[joy.MY_ID].rotationController(robot.angle, targetAngles[joy.MY_ID]);
+
+    roboteam_msgs::RobotCommand command;
+    command.id = ROBOT_ID;
+    command.y_vel = requiredSpeed.y;
+    command.x_vel = requiredSpeed.x;
+
+    command.w = requiredW;
+    command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
+
+    command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
+    if (command.kicker) { 
+        std::cout << "[RobotHub] Kicker command\n";
+        command.kicker_forced = true;
+
+        if(kickerhack){
+            command.kicker_vel = 4.0;
+            kickerhack=false;
+        } else {
+            command.kicker_vel = 5.0;
+            kickerhack=true;
+        }
+    }
+
+    if (joystickMap.chipperAxis != -1) {
+        command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
+    } else if (joystickMap.chipperContinuousAxis != -1) {
+        command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
+    }
+
+    if (command.chipper) {
+        std::cout << "[RobotHub] Chipper command\n";
+        command.chipper_forced = true;
+        command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
+    }
+
+    return command;
+}
 
 } // rtt
 
@@ -417,8 +427,6 @@ int main(int argc, char **argv) {
     auto geomSub = n.subscribe<roboteam_msgs::GeometryData>("vision_geometry", 1, callback_world_geometry);
     auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    UserKeeperController keeperController;
-
     ros::Rate fps(60);
 
     while (ros::ok()) {
@@ -426,9 +434,16 @@ int main(int argc, char **argv) {
             joy.update();
 
             if (joy.msg) {
-                // TODO: Make it parameter configurable whether or not keeper is on
-                auto command = keeperController.makeRobotCommand(joy, *joy.msg);
-                pub.publish(command);
+                if (joy.mode == "our keeper") {
+                    auto command = makeKeeperRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                } else if (joy.mode == "normal") {
+                    auto command = makeRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                } else {
+                    auto command = makeRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                }
             }
             
             // joy.msg = boost::none;
