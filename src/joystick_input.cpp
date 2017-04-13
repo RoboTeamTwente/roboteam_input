@@ -177,6 +177,8 @@ void callback_world_geometry(const roboteam_msgs::GeometryDataConstPtr& geom) {
     lastField = geom->field;
 
     receivedFirstGeomMsg = true;
+
+    std::cout << "Got geometry update!\n";
 }
 
 double cleanAngle(double angle){
@@ -193,11 +195,11 @@ Vector2 prevPosError;
 Vector2 integrator;
 
 Vector2 positionController(Vector2 posError) {
-    double maxSpeed = 2.0;
+    double maxSpeed = 4.0;
 
     double pGain = 2;
     double dGain = 4;
-    double iGain = 0.001;
+    double iGain = 0;
 
     integrator = integrator + posError;
 
@@ -207,8 +209,8 @@ Vector2 positionController(Vector2 posError) {
 
     prevPosError = posError;
 
-    if (requiredSpeed.length() > 1) {
-        requiredSpeed = requiredSpeed.normalize();
+    if (requiredSpeed.length() > maxSpeed) {
+        requiredSpeed = requiredSpeed.normalize() * maxSpeed;
     }
 
     // Slow down once we get close to the goal, otherwise go at maximum speed
@@ -386,17 +388,23 @@ roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::J
     int ROBOT_ID = joy.robotID;
     
     int const FPS = 60;
-    // TODO: This should be m/s, not rads. Now if you're far away you will go faster!
-    double radsPerSecond = 0.5;
-    keeperDir -= getVal(msg.axes, joystickMap.xAxis) * (radsPerSecond * (2 * M_PI)) * (1.0 / FPS);
-    keeperDist += getVal(msg.axes, joystickMap.yAxis) * (radsPerSecond * (2 * M_PI)) * (1.0 / FPS);
+    double mPerS = 2;
+    double keeperRadius = 2;
+
+    keeperDist += getVal(msg.axes, joystickMap.yAxis) * (mPerS * (1.0 / FPS));
+
+    double circumference = 2 * M_PI * keeperDist;
+    double radsPerSecond = mPerS / circumference * 2 * M_PI;
+
+    keeperDir -= getVal(msg.axes, joystickMap.xAxis) * (radsPerSecond * (1.0 / FPS));
 
     if (keeperDir < 0) keeperDir = 0;
     if (keeperDir > M_PI) keeperDir = M_PI;
     if (keeperDist < 0.1) keeperDist = 0.1;
-    if (keeperDist > 2) keeperDist = 2;
+    if (keeperDist > keeperRadius) keeperDist = keeperRadius;
 
     Vector2 keeperPos = Vector2(keeperDist, 0).rotate((M_PI - keeperDir) - (0.5 * M_PI));
+
     keeperPos = keeperPos + Vector2(lastField.field_length / -2, 0);
 
     roboteam_msgs::WorldRobot robot;
@@ -480,7 +488,7 @@ int main(int argc, char **argv) {
 
             if (joy.msg) {
                 // TODO: Make it parameter configurable whether or not keeper is on
-                auto command = makeKeeperRobotCommand(joy, *joy.msg);
+                auto command = makeRobotCommand(joy, *joy.msg);
                 pub.publish(command);
             }
             
