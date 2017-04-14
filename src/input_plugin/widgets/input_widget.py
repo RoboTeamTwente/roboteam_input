@@ -23,7 +23,7 @@ class InputWidget(QtWidgets.QFrame):
         self._input_port_input.setValidator(self.port_validator)
         self.layout().addWidget(self._input_port_input)
 
-        self._input_port_input.setText(str(rospy.get_param(self.get_param_base() + "input")))
+        self._input_port_input.setText(str(rospy.get_param(self.get_param_base() + "input", "js" + str(self._id))))
         self._input_port_input.textChanged.connect(self.change_input_port)
 
         # ---- /Input selector ----
@@ -37,7 +37,7 @@ class InputWidget(QtWidgets.QFrame):
         self._type_selector.insertItem(0, "playstation")
         self._type_selector.insertItem(0, "gioteck")
 
-        currentJoyType = rospy.get_param(self.get_param_base() + "joyType");
+        currentJoyType = rospy.get_param(self.get_param_base() + "joyType", "gioteck");
         self._type_selector.setCurrentIndex(self._type_selector.findText(currentJoyType))
 
         self._type_selector.currentIndexChanged.connect(self.change_input_type)
@@ -54,10 +54,25 @@ class InputWidget(QtWidgets.QFrame):
         self._robot_id_input.setValidator(self.int_validator)
         self.layout().addWidget(self._robot_id_input)
 
-        self._robot_id_input.setText(str(rospy.get_param(self.get_param_base() + "robot")))
+        self._robot_id_input.setText(str(rospy.get_param(self.get_param_base() + "robot", int(self._id))))
         self._robot_id_input.textChanged.connect(self.change_bot_id)
 
         # --- /Robot id input ----
+
+        # --- Mode selector ----
+
+        self._mode_selector = QtWidgets.QComboBox()
+        self.layout().addWidget(self._mode_selector)
+
+        self._mode_selector.insertItem(0, "our keeper")
+        self._mode_selector.insertItem(0, "normal")
+
+        currentMode = rospy.get_param(self.get_param_base() + "mode", "normal");
+        self._mode_selector.setCurrentIndex(self._mode_selector.findText(currentMode))
+
+        self._mode_selector.currentIndexChanged.connect(self.change_input_mode)
+
+        # --- /Mode selector ----
 
     def get_param_base(self):
         return "input" + str(self._id) + "/"
@@ -73,6 +88,10 @@ class InputWidget(QtWidgets.QFrame):
 
         rospy.set_param(self.get_param_base() + "joyType", input_type)
 
+    def change_input_mode(self, mode_index):
+        input_mode = self._mode_selector.itemText(mode_index)
+
+        rospy.set_param(self.get_param_base() + "mode", input_mode)
 
     def change_bot_id(self, bot_id):
         try:
