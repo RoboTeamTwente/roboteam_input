@@ -42,8 +42,8 @@ const std::map<std::string, JoystickMap> joystickTypeMap = {
         {"xbox", {
             0,  // xAxis
             1,  // yAxis
-            3,  // rotationXAxis
-            4,  // rotationYAxis
+            2,  // rotationXAxis
+            3,  // rotationYAxis
             4,  // dribblerAxis
             5,  // kickerAxis
             -1, // chipperAxis
@@ -289,8 +289,8 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
 
     roboteam_msgs::RobotCommand command;
     command.id = ROBOT_ID;
-    command.y_vel = getVal(msg.axes, joystickMap.xAxis)*4;
-    command.x_vel = getVal(msg.axes, joystickMap.yAxis)*4;
+    command.y_vel = getVal(msg.axes, joystickMap.xAxis)*2;
+    command.x_vel = getVal(msg.axes, joystickMap.yAxis)*2;
 
     if(fabs(command.x_vel) < 0.1) {
         command.x_vel=0;
@@ -299,7 +299,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
         command.y_vel=0;
     }
 
-    command.w = getVal(msg.axes, joystickMap.rotationXAxis)*2;
+    command.w = getVal(msg.axes, joystickMap.rotationXAxis)*10;
     command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
 
     command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
@@ -315,6 +315,17 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy con
             kickerhack=true;
         }
     }
+
+    // limit deadzone and minimum
+    if(fabs(command.y_vel) < 0.3){command.y_vel=0.0;}
+    else if(fabs(command.y_vel) < 1.0){command.y_vel=command.y_vel/fabs(command.y_vel);}
+    
+    if(fabs(command.x_vel) < 0.3){command.x_vel=0.0;}
+    else if(fabs(command.x_vel) < 1.0){command.x_vel=command.x_vel/fabs(command.x_vel);}
+    
+    if(fabs(command.w) < 1.5){command.w=0.0;}
+    else if(fabs(command.w) < 5.0){command.w=command.w/fabs(command.w)*5.0;}
+    
 
     if (joystickMap.chipperAxis != -1) {
         command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
