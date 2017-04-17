@@ -33,7 +33,8 @@ class InputWidget(QtWidgets.QFrame):
         self._type_selector = QtWidgets.QComboBox()
         self.layout().addWidget(self._type_selector)
 
-        self._type_selector.insertItem(0, "xbox")
+        self._type_selector.insertItem(0, "xbox ewoud")
+        self._type_selector.insertItem(0, "xbox vision")
         self._type_selector.insertItem(0, "playstation")
         self._type_selector.insertItem(0, "gioteck")
 

@@ -39,11 +39,22 @@ const int NUM_CONTROLLERS = 4;
 
 const std::map<std::string, JoystickMap> joystickTypeMap = {
     {
-        {"xbox", {
+        {"xbox ewoud", {
             0,  // xAxis
             1,  // yAxis
             2,  // rotationXAxis
             3,  // rotationYAxis
+            4,  // dribblerAxis
+            5,  // kickerAxis
+            -1, // chipperAxis
+            5   // chipperContinuousAxis
+        }},
+	// TODO: Make this in a config file or smth s.t. the input configurer can read this shit as well
+	{"xbox vision", {
+            0,  // xAxis
+            1,  // yAxis
+            3,  // rotationXAxis
+            4,  // rotationYAxis
             4,  // dribblerAxis
             5,  // kickerAxis
             -1, // chipperAxis
