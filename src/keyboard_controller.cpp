@@ -2,6 +2,7 @@
 #include <iostream>
 #include <ros/ros.h>
 #include <boost/optional.hpp>
+#include <std_msgs/Bool.h>
 
 #include "roboteam_msgs/RobotCommand.h"
 #include "roboteam_utils/Vector2.h"
@@ -59,7 +60,70 @@ double const MAX_VEL = 6;
 double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
 int const MAX_ID = 16;
 
-void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int currentID) {
+struct KickerTracker {
+
+    KickerTracker() : commandPub(n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 100))
+                    , kickerPub(n.advertise<std_msgs::Bool>("chargeKicker", 100))
+                    , robotIsPrimed{}
+                    { }
+
+    void handleEvent(SDL_Event e) {
+        if (e.type != SDL_KEYDOWN) {
+            return;
+        }
+
+        if (e.key.keysym.sym == SDLK_F8) {
+            if (isCharging) {
+                isCharging = false;
+            } else {
+                isCharging = true;
+                robotIsPrimed.fill(true);
+            }
+
+            std_msgs::Bool msg;
+            msg.data = isCharging;
+            kickerPub.publish(msg);
+        } else if (e.key.keysym.sym == SDLK_F10) {
+            if (!isCharging) {
+                roboteam_msgs::RobotCommand command;
+                command.kicker = true;
+                command.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
+                command.kicker_forced = true;
+
+                for (int i = 0; i < 16; ++i) {
+                    if (robotIsPrimed.at(i)) {
+                        command.id = i;
+                        commandPub.publish(command);
+                        robotIsPrimed.at(i) = false;
+                    }
+                }
+
+                isCharging = false;
+            }
+        }
+    }
+
+    bool isPrimed(int id) const {
+        if (id >= 0 && id <= 16) {
+            return robotIsPrimed.at(id);
+        }
+
+        return false;
+    }
+    
+    ros::NodeHandle n;
+    ros::Publisher commandPub;
+    ros::Publisher kickerPub;
+
+    std::array<bool, 16> robotIsPrimed;
+    bool isCharging = false;
+
+    SDL_Keycode KEY_TOGGLE_CHARGING = SDLK_F8;
+    SDL_Keycode KEY_DISCHARGE = SDLK_F10;
+
+} ;
+
+void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int currentID, KickerTracker const & kickerTracker) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
     int offsetX = 10;
@@ -113,6 +177,11 @@ void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int cur
     int boxesPerRow = 4;
     int rows = 4;
 
+    int exclamationSpacing = 5;
+    int exclamationWidth = 5;
+    int exclamationBarHeight = 15;
+    int exclamationDotSize = 3;
+
     for (int y = 0; y < rows; ++y) {
         for (int x = 0; x < boxesPerRow; ++x) {
             int id = y * boxesPerRow + x;
@@ -128,7 +197,43 @@ void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int cur
             } else {
                 SDL_RenderDrawRect(renderer, &outlineRect);
             }
+
+            if (kickerTracker.isPrimed(id)) {
+                outlineRect.x = outlineRect.x + boxSize + exclamationSpacing;
+                outlineRect.y = outlineRect.y;
+                outlineRect.w = exclamationWidth;
+                outlineRect.h = exclamationBarHeight;
+                SDL_RenderFillRect(renderer, &outlineRect);
+
+                outlineRect.x = outlineRect.x;
+                outlineRect.y = outlineRect.y + boxSize - outlineRect.w;
+                outlineRect.w = outlineRect.w;
+                outlineRect.h = outlineRect.w;
+                SDL_RenderFillRect(renderer, &outlineRect);
+            }
         }
+    }
+
+    int spacingAfterBoxes = 10;
+    int bigExclamationStartY = startY + barHeight + spacing + barHeight + spacing + (rows * (boxSize + boxSpacing)) + spacingAfterBoxes;
+    int bigExclamationBarHeight = 75;
+    int bigExclamationBetween = 10;
+    int bigExclamationWidth = 20;
+
+    // KickerTracker exclamation mark
+    if (kickerTracker.isCharging) {
+        SDL_Rect outlineRect;
+        outlineRect.x = startX;
+        outlineRect.y = bigExclamationStartY;
+        outlineRect.w = bigExclamationWidth;
+        outlineRect.h = bigExclamationBarHeight;
+        SDL_RenderFillRect(renderer, &outlineRect); 
+
+        outlineRect.x = outlineRect.x;
+        outlineRect.y = outlineRect.y + bigExclamationBarHeight + bigExclamationBetween;
+        outlineRect.w = bigExclamationWidth;
+        outlineRect.h = bigExclamationWidth;
+        SDL_RenderFillRect(renderer, &outlineRect);
     }
 }
 
@@ -256,15 +361,16 @@ int main(int argc, char* argv[]) {
     std::cout << R"--(
 RTT Keyboard Joystick
 
-Controls:
+Controls:10
     Arrow keys to steer/drive
     z/x to strafe left/right
     v to kick
     n to chip
     space to dribble
     0-9, a-f to select an ID
-    Numpad 4/6 to decrease/increase x velocity
-    Numpad 1/3 to decrease/increase angular velocity
+    Numpad 4/6 or F4/F6 to decrease/increase x velocity
+    Numpad 1/3 or F1/F3 to decrease/increase angular velocity
+    F8 to turn charging arduino kickers on or off, F10 to discharge kickers
 )--";
 
     int posX = 100;
@@ -315,6 +421,8 @@ Controls:
     // TODO: Maybe base this on role_iterations_per_second?
     ros::Rate fpsRate(60);
 
+    KickerTracker kickerTracker;
+
     // Event loop
     bool quit = false;
     SDL_Event e;
@@ -351,6 +459,7 @@ Controls:
             // Handle speed & direction
             speed.handleEvent(e);
             direction.handleEvent(e);
+            kickerTracker.handleEvent(e);
         }
 
         // Publish a robot instruction
@@ -365,7 +474,7 @@ Controls:
         SDL_RenderClear(renderer);
 
         // Draw the gui and refresh the screen
-        drawGui(renderer, speed.currentVel, speed.currentW, currentID);
+        drawGui(renderer, speed.currentVel, speed.currentW, currentID, kickerTracker);
         SDL_RenderPresent(renderer);
     }
 
