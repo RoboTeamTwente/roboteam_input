@@ -59,6 +59,7 @@ b::optional<int> stringToID(std::string idStr) {
 double const MAX_VEL = 6;
 double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
 int const MAX_ID = 16;
+int currentKickerVel=8;
 
 struct KickerTracker {
 
@@ -87,7 +88,7 @@ struct KickerTracker {
             if (!isCharging) {
                 roboteam_msgs::RobotCommand command;
                 command.kicker = true;
-                command.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
+                command.kicker_vel = currentKickerVel;
                 command.kicker_forced = true;
 
                 for (int i = 0; i < 16; ++i) {
@@ -332,7 +333,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & 
 
     if (direction.doKick) {
         r.kicker = true;
-        r.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
+        r.kicker_vel = currentKickerVel;
         // r.kicker_forced = true;
     } else if (direction.doChip) {
         r.chipper = true;
@@ -368,6 +369,7 @@ Controls:10
     n to chip
     space to dribble
     0-9, a-f to select an ID
+    Numpad 7/9 to decrease/increase kicker velocity
     Numpad 4/6 or F4/F6 to decrease/increase x velocity
     Numpad 1/3 or F1/F3 to decrease/increase angular velocity
     F8 to turn charging arduino kickers on or off, F10 to discharge kickers
@@ -460,6 +462,29 @@ Controls:10
             speed.handleEvent(e);
             direction.handleEvent(e);
             kickerTracker.handleEvent(e);
+
+            if (e.key.keysym.sym == SDLK_KP_7 && e.type==SDL_KEYDOWN) {
+
+                if (currentKickerVel > 0){
+                    currentKickerVel=currentKickerVel-1;
+                    std::cout << "kicker velocity set to: " << currentKickerVel << std::endl;
+                }
+                else {
+                    std::cout << "kicker velocity is already 0" << std::endl;
+                }
+
+                
+            }
+
+            if (e.key.keysym.sym == SDLK_KP_9 && e.type==SDL_KEYDOWN) {
+                if(currentKickerVel < roboteam_msgs::RobotCommand::MAX_KICKER_VEL){
+                    currentKickerVel=currentKickerVel+1;
+                    std::cout << "kicker velocity set to: " << currentKickerVel << std::endl;
+                }
+                else {
+                    std::cout << "kicker velocity already at maximum" << std::endl;
+                }
+            }  
         }
 
         // Publish a robot instruction
