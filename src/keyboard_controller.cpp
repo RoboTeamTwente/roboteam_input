@@ -204,7 +204,7 @@ void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double 
 
     int exclamationSpacing = 5;
     int exclamationWidth = 5;
-    int exclamationBarHeight = 15;
+    int exclamationBarHeight = 12;
     int exclamationDotSize = 3;
 
     for (int y = 0; y < rows; ++y) {
