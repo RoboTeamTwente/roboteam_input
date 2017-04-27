@@ -59,7 +59,6 @@ b::optional<int> stringToID(std::string idStr) {
 double const MAX_VEL = 6;
 double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
 int const MAX_ID = 16;
-int currentKickerVel=8;
 
 struct KickerTracker {
 
@@ -88,7 +87,7 @@ struct KickerTracker {
             if (!isCharging) {
                 roboteam_msgs::RobotCommand command;
                 command.kicker = true;
-                command.kicker_vel = currentKickerVel;
+                command.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
                 command.kicker_forced = true;
 
                 for (int i = 0; i < 16; ++i) {
@@ -98,8 +97,6 @@ struct KickerTracker {
                         robotIsPrimed.at(i) = false;
                     }
                 }
-
-                isCharging = false;
             }
         }
     }
@@ -369,11 +366,11 @@ roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & 
 
     if (direction.doKick) {
         r.kicker = true;
-        r.kicker_vel = currentKickerVel;
+        r.kicker_vel = speed.currentKick;
         // r.kicker_forced = true;
     } else if (direction.doChip) {
         r.chipper = true;
-        r.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
+        r.chipper_vel = speed.currentKick;
         // r.chipper_forced= true;
     }
 
