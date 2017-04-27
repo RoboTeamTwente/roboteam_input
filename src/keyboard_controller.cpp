@@ -124,7 +124,7 @@ struct KickerTracker {
 
 } ;
 
-void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int currentID, KickerTracker const & kickerTracker) {
+void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double currentW, int currentID, KickerTracker const & kickerTracker) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
     int offsetX = 10;
@@ -139,34 +139,61 @@ void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int cur
     int pictoWidth = 20;
     int pictoEndX = pictoStartX + pictoWidth;
 
+    // Kick
+    {
+        int pictoHalfY = startY + barHeight / 2;
+        int spacing = 10;
+
+        SDL_RenderDrawLine(renderer, pictoStartX, pictoHalfY, pictoEndX, pictoHalfY);
+        SDL_RenderDrawLine(renderer, pictoEndX, startY, pictoEndX, startY + barHeight);
+
+        int boxSize = barHeight;
+
+        for (int i = 0; i < 8; ++i) {
+            SDL_Rect kickRect;
+            kickRect.x = startX + i * (boxSize + spacing);
+            kickRect.y = startY;
+            kickRect.w = boxSize;
+            kickRect.h = boxSize;
+
+            int kickPowerHere = i + 1;
+
+            if (kickPowerHere <= currentKick) {
+                SDL_RenderFillRect(renderer, &kickRect);
+            } else {
+                SDL_RenderDrawRect(renderer, &kickRect);
+            }
+        }
+    }
+
     // Speed
-    int pictoHalfY = startY + barHeight / 2;
+    int pictoHalfY = startY + barHeight + spacing + barHeight / 2;
     SDL_RenderDrawLine(renderer, pictoStartX, pictoHalfY, pictoEndX, pictoHalfY);
-    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY);
-    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY + barHeight);
+    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY + barHeight + spacing);
+    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY + barHeight + spacing + barHeight);
 
     SDL_Rect velRect;
     velRect.x = startX;
-    velRect.y = startY;
+    velRect.y = startY + barHeight + spacing;
     velRect.w = currentVel / MAX_VEL * barWidth;
     velRect.h = barHeight;
     SDL_RenderFillRect(renderer, &velRect);
 
     // Angle
-    int pictoStartY = startY + barHeight + spacing;
+    int pictoStartY = startY + barHeight + spacing + barHeight + spacing;
     int pictoEndY = pictoStartY + barHeight;
     SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoStartY);
     SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoEndY);
 
     SDL_Rect wRect;
     wRect.x = startX;
-    wRect.y = startY + barHeight + spacing;
+    wRect.y = startY + barHeight + spacing + barHeight + spacing;
     wRect.w = currentW / MAX_W * barWidth;
     wRect.h = barHeight;
     SDL_RenderFillRect(renderer, &wRect);
 
     // ID
-    pictoStartY = startY + barHeight + spacing + barHeight + spacing;
+    pictoStartY = startY + barHeight + spacing + barHeight + spacing + barHeight + spacing;
     pictoEndY = pictoStartY + barHeight;
 
     SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoEndX, pictoStartY);
@@ -189,7 +216,7 @@ void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int cur
 
             SDL_Rect outlineRect;
             outlineRect.x = startX + x * (boxSize + boxSpacing);
-            outlineRect.y = y * (boxSize + boxSpacing) + (startY + barHeight + spacing + barHeight + spacing);
+            outlineRect.y = y * (boxSize + boxSpacing) + (startY + barHeight + spacing + barHeight + spacing + barHeight + spacing);
             outlineRect.w = boxSize;
             outlineRect.h = boxSize;
 
@@ -215,9 +242,9 @@ void drawGui(SDL_Renderer *renderer, double currentVel, double currentW, int cur
         }
     }
 
-    int spacingAfterBoxes = 10;
-    int bigExclamationStartY = startY + barHeight + spacing + barHeight + spacing + (rows * (boxSize + boxSpacing)) + spacingAfterBoxes;
-    int bigExclamationBarHeight = 75;
+    int spacingAfterBoxes = 0;
+    int bigExclamationStartY = startY + barHeight + spacing + barHeight + spacing + barHeight + spacing + (rows * (boxSize + boxSpacing)) + spacingAfterBoxes;
+    int bigExclamationBarHeight = 65;
     int bigExclamationBetween = 10;
     int bigExclamationWidth = 20;
 
@@ -303,6 +330,10 @@ struct Speed {
                 currentW += STEP_W;
             } else if (key == KEY_DECREASE_W) {
                 currentW -= STEP_W;
+            } else if (key == KEY_INCREASE_KICK) {
+                currentKick++;
+            } else if (key == KEY_DECREASE_KICK) {
+                currentKick--;
             }
         } 
 
@@ -310,10 +341,13 @@ struct Speed {
         if (currentVel < 0) currentVel = 0;
         if (currentW > MAX_W) currentW = MAX_W;
         if (currentW < 0) currentW = 0;
+        if (currentKick > roboteam_msgs::RobotCommand::MAX_KICKER_VEL) currentKick = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
+        if (currentKick < 0) currentKick = 0;
     }
 
     double currentVel = 1;
     double currentW = 5;
+    int currentKick = 1;
 
     double const STEP_VEL = 0.1;
     double const STEP_W = 0.1;
@@ -322,6 +356,8 @@ struct Speed {
     SDL_Keycode const KEY_DECREASE_VEL = SDLK_KP_4;
     SDL_Keycode const KEY_INCREASE_W = SDLK_KP_3;
     SDL_Keycode const KEY_DECREASE_W = SDLK_KP_1;
+    SDL_Keycode const KEY_INCREASE_KICK = SDLK_KP_9;
+    SDL_Keycode const KEY_DECREASE_KICK = SDLK_KP_7;
 } ;
 
 roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & speed, Direction const & direction) {
@@ -462,29 +498,6 @@ Controls:10
             speed.handleEvent(e);
             direction.handleEvent(e);
             kickerTracker.handleEvent(e);
-
-            if (e.key.keysym.sym == SDLK_KP_7 && e.type==SDL_KEYDOWN) {
-
-                if (currentKickerVel > 0){
-                    currentKickerVel=currentKickerVel-1;
-                    std::cout << "kicker velocity set to: " << currentKickerVel << std::endl;
-                }
-                else {
-                    std::cout << "kicker velocity is already 0" << std::endl;
-                }
-
-                
-            }
-
-            if (e.key.keysym.sym == SDLK_KP_9 && e.type==SDL_KEYDOWN) {
-                if(currentKickerVel < roboteam_msgs::RobotCommand::MAX_KICKER_VEL){
-                    currentKickerVel=currentKickerVel+1;
-                    std::cout << "kicker velocity set to: " << currentKickerVel << std::endl;
-                }
-                else {
-                    std::cout << "kicker velocity already at maximum" << std::endl;
-                }
-            }  
         }
 
         // Publish a robot instruction
@@ -499,7 +512,7 @@ Controls:10
         SDL_RenderClear(renderer);
 
         // Draw the gui and refresh the screen
-        drawGui(renderer, speed.currentVel, speed.currentW, currentID, kickerTracker);
+        drawGui(renderer, speed.currentKick, speed.currentVel, speed.currentW, currentID, kickerTracker);
         SDL_RenderPresent(renderer);
     }
 
