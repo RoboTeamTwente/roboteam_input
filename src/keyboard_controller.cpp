@@ -60,6 +60,8 @@ double const MAX_VEL = 6;
 double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
 int const MAX_ID = 16;
 
+
+
 struct KickerTracker {
 
     KickerTracker() : commandPub(n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 100))
@@ -357,12 +359,25 @@ struct Speed {
     SDL_Keycode const KEY_DECREASE_KICK = SDLK_KP_7;
 } ;
 
+roboteam_msgs::RobotCommand prevRobotCommand;
 roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & speed, Direction const & direction) {
     roboteam_msgs::RobotCommand r;
     r.id = currentID;
     r.x_vel = direction.x_vel * speed.currentVel;
     r.y_vel = direction.y_vel * speed.currentVel;
     r.w = direction.w * speed.currentW;
+
+    // double velIncrement = 0.03;
+    // double wIncrement = 0.03;
+    // if ((fabs(r.x_vel) - fabs(prevRobotCommand.x_vel)) > velIncrement) {
+    //     r.x_vel = (fabs(prevRobotCommand.x_vel) + velIncrement) * r.x_vel / fabs(r.x_vel);
+    // }
+    // if ((fabs(r.y_vel) - fabs(prevRobotCommand.y_vel)) > velIncrement) {
+    //     r.y_vel = (fabs(prevRobotCommand.y_vel) + velIncrement) * r.y_vel / fabs(r.y_vel);
+    // }
+    // if ((fabs(r.w) - fabs(prevRobotCommand.w)) > wIncrement) {
+    //     r.w = (fabs(prevRobotCommand.w) + wIncrement) * r.w / fabs(r.w);
+    // }
 
     if (direction.doKick) {
         r.kicker = true;
@@ -375,6 +390,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & 
     }
 
     r.dribbler = direction.doDribble;
+    prevRobotCommand = r;
 
     return r;
 }
