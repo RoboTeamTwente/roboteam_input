@@ -11,6 +11,19 @@ namespace b = boost;
 
 namespace {
 
+b::optional<std::string> getCmdOption(const std::vector<std::string>& args, const std::string & option) {
+    auto it = std::find(args.begin(), args.end(), option);
+    if (it != args.end() && (it + 1) != args.end()) {
+        return *(it + 1);
+    }
+
+    return b::none;
+}
+
+bool cmdOptionExists(const std::vector<std::string>& args, const std::string& option) {
+    return std::find(args.begin(), args.end(), option) != args.end();
+}
+
 std::vector<SDL_Keycode> const robotIDNumKeys = {
     SDLK_0,  
     SDLK_1,  
@@ -392,6 +405,18 @@ bool isCtrlPressed(SDL_Event const e) {
 }
 
 int main(int argc, char* argv[]) {
+    std::vector<std::string> args(argv + 1, argv + argc);
+
+    if (cmdOptionExists(args, "--help") || cmdOptionExists(args, "-h")) {
+        std::cout << R"--([Keyboard controller]
+
+Args:
+    --help, -h      Display this help
+    -id             Set the starting ID (default: 5)
+)--";
+        return 0;
+    }
+
     std::cout << R"--(
 RTT Keyboard Joystick
 
@@ -446,6 +471,15 @@ Controls:10
     robotIDAllKeys.insert(robotIDAllKeys.end(), robotIDLetterKeys.begin(), robotIDLetterKeys.end());
 
     int currentID = 5;
+
+    if (auto idOpt = getCmdOption(args, "-id")) {
+        try {
+            currentID = std::stoi(*idOpt);
+        } catch (...) {
+            std::cerr << "Could not convert id \"" << *idOpt << "\" to integer. Keeping 5.";
+        }
+    }
+
     Speed speed;
     Direction direction;
 
