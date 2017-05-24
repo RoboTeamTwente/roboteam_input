@@ -1,6 +1,6 @@
 <launch>
 
-    <node pkg="roboteam_input" type="roboteam_input" name="roboteam_input" output="screen" />
+    <node pkg="roboteam_input" type="joystick_input" name="joystick_input" output="screen" />
 
     <param name="input0/input" value="js0" />
     <param name="input0/robot" value="0" />
