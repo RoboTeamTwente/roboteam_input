@@ -60,20 +60,28 @@ add_executable(joystick_input src/joystick_input.cpp)
 target_link_libraries(joystick_input ${catkin_LIBRARIES})
 add_dependencies(joystick_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(keyboard_controller 
-    src/keyboard_controller.cpp
-    )
-target_link_libraries( keyboard_controller 
-    ${catkin_LIBRARIES}
-    ${SDL2_LIBRARY}
-    )
-add_dependencies(keyboard_controller 
-    ${${PROJECT_NAME}_EXPORTED_TARGETS} 
-    ${catkin_EXPORTED_TARGETS}
-    )
+if (${SDL2_FOUND})
 
+    MESSAGE("-- Building keyboard controller with SDL2")
 
-MESSAGE("-- SDL2 not found, so cannot build keyboard_controller! Have you installed SDL2?")
+    add_executable(keyboard_controller 
+        src/keyboard_controller.cpp
+        )
+    target_link_libraries( keyboard_controller 
+        ${catkin_LIBRARIES}
+        ${SDL2_LIBRARY}
+        )
+    add_dependencies(keyboard_controller 
+        ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+        ${catkin_EXPORTED_TARGETS}
+        )
+
+else (${SDL2_FOUND})
+
+    MESSAGE("-- SDL2 not found, so cannot build keyboard_controller! Have you installed SDL2?")
+
+endif(${SDL2_FOUND})
+
 
 
 
