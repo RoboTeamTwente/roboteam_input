@@ -1,83 +1,435 @@
 #include <string>
 #include <cmath>
 #include <boost/optional.hpp>
+namespace b = ::boost;
+#include <boost/process.hpp>
+namespace bp = ::boost::process;
+#include <map>
 
-#include "joystick_input.h"
+#include <string>
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
 #include "roboteam_msgs/RobotCommand.h"
+#include "roboteam_msgs/World.h"
+#include "roboteam_msgs/GeometryFieldSize.h"
+#include "roboteam_msgs/GeometryData.h"
+#include "roboteam_utils/Vector2.h"
 #include <typeinfo>
+#include <cmath>
+#include "roboteam_utils/world_analysis.h"
 
 namespace rtt {
 
 struct JoystickMap {
-    int speedAxis;
-    int directionAxis;
-    int rotationAxis;
+    int xAxis;
+    int yAxis;
+    int rotationXAxis;
+    int rotationYAxis;
     int dribblerAxis;
     int kickerAxis;
+    
+    // These two are needed because the gioteck has a button (i.e. 0/1 input) for the right trigger,
+    // while the right trigger of the xbox is continuus (i.e. -30000 when depressed and +30000 when pressed)
+    // I hate the real world
+    int chipperAxis;
+    int chipperContinuousAxis;
 } ;
 
 const int NUM_CONTROLLERS = 4;
 
 const std::map<std::string, JoystickMap> joystickTypeMap = {
     {
-        {"xbox", {
-            1, // speedAxis
-            0, // directionAxis
-            3, // rotationAxis
-            4, // dribblerAxis
-            5 // kickerAxis
+        {"xbox ewoud", {
+            0,  // xAxis
+            1,  // yAxis
+            2,  // rotationXAxis
+            3,  // rotationYAxis
+            4,  // dribblerAxis
+            5,  // kickerAxis
+            -1, // chipperAxis
+            5   // chipperContinuousAxis
+        }},
+	// TODO: Make this in a config file or smth s.t. the input configurer can read this shit as well
+	{"xbox vision", {
+            0,  // xAxis
+            1,  // yAxis
+            3,  // rotationXAxis
+            4,  // rotationYAxis
+            4,  // dribblerAxis
+            5,  // kickerAxis
+            -1, // chipperAxis
+            5   // chipperContinuousAxis
         }},
         {"playstation", {
-            1, // speedAxis
-            0, // directionAxis
-            2, // rotationAxis
-            10, // dribblerAxis
-            11 // kickerAxis
+            0,  // xAxis
+            1,  // yAxis
+            2,  // rotationXAxis
+            3,  // rotationYAxis
+            10, // dribblerAxiscatkin
+            11, // kickerAxis
+            -1, // chipperAxis
+            5   // chipperContinuousAxis
         }},
         {"gioteck", {
-            1, // speedAxis
-            0, // directionAxis
-            2, // rotationAxis
+            0, // yAxis
+            1, // xAxis
+            2, // rotationXAxis
+            3, // rotationYAxis
             4, // dribblerAxis
-            5 // kickerAxis
+            5, // kickerAxis
+            7, // chipperAxis
+            -1 // chipperContinuousAxis
         }}
     }
 };
 
-std::array<boost::optional<sensor_msgs::Joy>, NUM_CONTROLLERS> joyMsgs;
+struct JoyEntry {
+    b::optional<bp::child>        process;
+    b::optional<ros::Subscriber>  subscriber;
 
-void receiveJoyMsg(int inputNum, const sensor_msgs::JoyConstPtr& msg) {
-    // Only store the newest messages
-    joyMsgs[inputNum] = *msg;
+    b::optional<sensor_msgs::Joy> msg;
+
+    std::string input;
+    int robotID;
+    std::string joyType;
+    std::string mode;
+
+    static int intSupplier;
+    int const MY_ID;
+
+    JoyEntry() : robotID{-1}, MY_ID{intSupplier++} {}
+
+    void setToInput(std::string newInput) {
+        if (newInput != input) {
+            input = newInput;
+
+            // Remove the most recently received message to prevent stale values.
+            msg = b::none;
+
+            // Kill your darlings if needed
+            if (process) {
+                process = b::none;
+            }
+
+            if (subscriber) {
+                subscriber->shutdown();
+                subscriber = b::none;
+            }
+
+            if (input == "") {
+                return;
+            }
+
+            // Make new process
+            std::string exec = "roslaunch";
+
+            std::vector<std::string> args = {
+                "roboteam_input",
+                "joy_node.launch",
+                "jsTarget:=" + input
+            };
+            
+            // If this ever starts throwing weird compile time errors about
+            // exe_cmd_init being deleted, just go to posix/basic_cmd.hpp
+            // and mark the exe_cmd_init(const ...) function as default
+            // See: https://github.com/klemens-morgenstern/boost-process/issues/21
+            std::cout << "Starting process\n";
+            process = bp::child(
+                bp::search_path("roslaunch"),
+                "roboteam_input",
+                "joy_node.launch",
+                "jsTarget:=" + input,
+                bp::std_out > bp::null
+            );
+
+            // Make new subscriber
+            ros::NodeHandle n;
+            subscriber = n.subscribe(input, 1, &JoyEntry::receiveJoyMsg, this);
+
+        }
+
+    }
+    
+    void receiveJoyMsg(const sensor_msgs::JoyConstPtr& msg) {
+        // Only store the newest messages
+        this->msg = *msg;
+    }
+
+    void update() {
+        std::string newInput;
+        int newRobotID = -1;
+        std::string newJoyType;
+        std::string newMode;
+
+        ros::param::get("input" + std::to_string(MY_ID) + "/input", newInput);
+        ros::param::get("input" + std::to_string(MY_ID) + "/robot", newRobotID);
+        ros::param::get("input" + std::to_string(MY_ID) + "/joyType", newJoyType);
+        ros::param::get("input" + std::to_string(MY_ID) + "/mode", newMode);
+
+        setToInput(newInput);
+
+        robotID = newRobotID;
+
+        joyType = newJoyType;
+
+        mode = newMode;
+    }
+} ;
+
+int JoyEntry::intSupplier = 0;
+
+std::array<JoyEntry, NUM_CONTROLLERS> joys;
+
+roboteam_msgs::World lastWorld;
+bool receivedFirstWorldMsg = false;
+void callback_world_state(const roboteam_msgs::WorldConstPtr& world) {
+    lastWorld = *world;
+    receivedFirstWorldMsg = true;
 }
 
-roboteam_msgs::RobotCommand makeRobotCommand(const int inputNum, const sensor_msgs::Joy& msg) {
-    // Everything is within the roboteam_input node, in groups going from
-    // input0 to inputN.
-    const std::string group = "~input" + std::to_string(inputNum);
+roboteam_msgs::GeometryFieldSize lastField;
+bool receivedFirstGeomMsg = false;
+void callback_world_geometry(const roboteam_msgs::GeometryDataConstPtr& geom) {
+    lastField = geom->field;
 
-    // Get the joystick type
-    std::string joyType = "xbox";
-    ros::param::get(group + "/joyType", joyType);
-    const JoystickMap &joystickMap = joystickTypeMap.at(joyType);
+    receivedFirstGeomMsg = true;
+
+    std::cout << "Got geometry update!\n";
+}
+
+double cleanAngle(double angle){
+    if (angle <= -M_PI){
+        return fmod(angle-M_PI, (2*M_PI))+M_PI;
+    } else if(angle > M_PI){
+        return fmod(angle+M_PI, (2*M_PI))-M_PI;
+    } else {
+        return angle;
+    }
+}
+
+class RobotPosController {
+public:
+    Vector2 positionController(Vector2 position, Vector2 target) {
+        double maxSpeed = 4.0;
+
+        double pGain = 2;
+        double dGain = 4;
+        double iGain = 0;
+
+        auto posError = target - position;
+
+        integrator = integrator + posError;
+
+        Vector2 requiredSpeed = posError*pGain;
+        requiredSpeed = requiredSpeed + (posError - prevPosError) * dGain;
+        requiredSpeed = requiredSpeed + integrator * iGain;
+
+        prevPosError = posError;
+
+        if (requiredSpeed.length() > maxSpeed) {
+            requiredSpeed = requiredSpeed.normalize() * maxSpeed;
+        }
+
+        return requiredSpeed;
+    }
+
+
+    double rotationController(double angle, double target) {
+        double pGainRot = 4.0;
+        double dGainRot = 6.0;
+        double maxRotSpeed = 7.0;
+
+        auto angleError = target - angle;
+
+        angleError = cleanAngle(angleError);
+        double requiredRotSpeed = angleError * pGainRot;
+        requiredRotSpeed += (angleError - prevAngleError) * dGainRot;
+
+        prevAngleError = angleError;
+
+        if (fabs(requiredRotSpeed) > maxRotSpeed) {
+            requiredRotSpeed = requiredRotSpeed / fabs(requiredRotSpeed) * maxRotSpeed;
+        }
+
+        return requiredRotSpeed;
+    }
+
+private:
+    Vector2 prevPosError;
+    Vector2 integrator;
+    double prevAngleError = 0;
+
+} ;
+
+Vector2 worldToRobotFrame(Vector2 requiredv, double rotation) {
+    Vector2 robotRequiredv;
+    robotRequiredv.x=requiredv.x*cos(-rotation)-requiredv.y*sin(-rotation);
+    robotRequiredv.y=requiredv.x*sin(-rotation)+requiredv.y*cos(-rotation);
+	return robotRequiredv;
+}
+
+template <
+    typename T
+>
+T getVal(const std::vector<T> & values, size_t index) {
+    if (index < values.size()) {
+        return values[index];
+    }
+    return T(0);
+}
+
+double speedValue(const double input) {
+    double speedValue;
+    if (input < 0.8) {
+        speedValue = 0.1 * input;
+    } else {
+        speedValue = 9 * input - 9;
+    }
+    return speedValue;
+}
+
+bool kickerhack=false;
+
+roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
+    roboteam_msgs::World world = lastWorld;
+
+    const JoystickMap &joystickMap = joystickTypeMap.at(joy.joyType);
 
     // Get the robot id
-    int ROBOT_ID = 0;
-    ros::param::get(group + "/robot", ROBOT_ID);
+    int ROBOT_ID = joy.robotID;
 
-    // Construct the robot command
     roboteam_msgs::RobotCommand command;
     command.id = ROBOT_ID;
-    command.active = true;
-    command.x_vel= pow(msg.axes[joystickMap.speedAxis], 3) * 3;
-    command.y_vel= pow(msg.axes[joystickMap.directionAxis], 3) * 3;
-    command.w = pow(msg.axes[joystickMap.rotationAxis], 3) * 5;
-    command.dribbler = msg.buttons[joystickMap.dribblerAxis] > 0;
-    command.kicker = msg.buttons[joystickMap.kickerAxis] > 0;
-    if (command.kicker > 0) {
-        command.kicker_vel = 8.0;
+    command.y_vel = getVal(msg.axes, joystickMap.xAxis)*2;
+    command.x_vel = getVal(msg.axes, joystickMap.yAxis)*2;
+
+    if(fabs(command.x_vel) < 0.1) {
+        command.x_vel=0;
+    }
+    if(fabs(command.y_vel) < 0.1) {
+        command.y_vel=0;
+    }
+
+    command.w = getVal(msg.axes, joystickMap.rotationXAxis)*10;
+    command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
+
+    command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
+    if (command.kicker) { 
+        std::cout << "[RobotHub] Kicker command\n";
+        command.kicker_forced = true;
+
+        if(kickerhack){
+            command.kicker_vel = 4.0;
+            kickerhack=false;
+        } else {
+            command.kicker_vel = 5.0;
+            kickerhack=true;
+        }
+    }
+
+    // limit deadzone and minimum
+    if(fabs(command.y_vel) < 0.3){command.y_vel=0.0;}
+    else if(fabs(command.y_vel) < 1.0){command.y_vel=command.y_vel/fabs(command.y_vel);}
+    
+    if(fabs(command.x_vel) < 0.3){command.x_vel=0.0;}
+    else if(fabs(command.x_vel) < 1.0){command.x_vel=command.x_vel/fabs(command.x_vel);}
+    
+    if(fabs(command.w) < 1.5){command.w=0.0;}
+    else if(fabs(command.w) < 5.0){command.w=command.w/fabs(command.w)*5.0;}
+    
+
+    if (joystickMap.chipperAxis != -1) {
+        command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
+    } else if (joystickMap.chipperContinuousAxis != -1) {
+        command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
+    }
+
+    if (command.chipper) {
+        std::cout << "[RobotHub] Chipper command\n";
+        command.chipper_forced = true;
+        command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
+    }
+
+    return command;
+}
+
+double keeperSpeed = 2.0;
+
+std::map<int, RobotPosController> angleControllers;
+std::map<int, double> targetAngles;
+
+roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry& joy, sensor_msgs::Joy const & msg) {
+    roboteam_msgs::World world = lastWorld;
+
+    const JoystickMap &joystickMap = joystickTypeMap.at(joy.joyType);
+
+    // Get the robot id
+    int ROBOT_ID = joy.robotID;
+    
+    int const FPS = 60;
+    double const FIELD_W = lastField.field_width;
+    double const FIELD_L = lastField.field_length ;
+
+    double keeperYVel = getVal(msg.axes, joystickMap.yAxis) * keeperSpeed;
+
+    //Disance from goal sideways
+    double keeperXVel = getVal(msg.axes, joystickMap.xAxis) * keeperSpeed;
+
+    Vector2 keeperPos = Vector2(keeperYVel, keeperXVel);
+
+    roboteam_msgs::WorldRobot robot;
+
+    if (auto robotOpt = lookup_our_bot(ROBOT_ID, &world)) {
+        robot = *robotOpt;
+    } else {
+        roboteam_msgs::RobotCommand r;
+        r.id = ROBOT_ID;
+        std::cout << "[RobotHub] Keeper robot with id " << ROBOT_ID << " not found\n";
+        return r;
+    }
+
+    Vector2 requiredSpeed = worldToRobotFrame(keeperPos, robot.angle);
+
+    if (targetAngles.find(joy.MY_ID) == targetAngles.end()) {
+        targetAngles[joy.MY_ID] = robot.angle;
+    }
+
+    targetAngles[joy.MY_ID] += getVal(msg.axes, joystickMap.rotationXAxis) * (2 * M_PI) * 0.6 * (1.0 / FPS);
+
+    double requiredW = angleControllers[joy.MY_ID].rotationController(robot.angle, targetAngles[joy.MY_ID]);
+
+    roboteam_msgs::RobotCommand command;
+    command.id = ROBOT_ID;
+    command.y_vel = requiredSpeed.y;
+    command.x_vel = requiredSpeed.x;
+
+    command.w = requiredW;
+    command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
+
+    command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
+    if (command.kicker) { 
+        std::cout << "[RobotHub] Kicker command\n";
+        command.kicker_forced = true;
+
+        if(kickerhack){
+            command.kicker_vel = 4.0;
+            kickerhack=false;
+        } else {
+            command.kicker_vel = 5.0;
+            kickerhack=true;
+        }
+    }
+
+    if (joystickMap.chipperAxis != -1) {
+        command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
+    } else if (joystickMap.chipperContinuousAxis != -1) {
+        command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
+    }
+
+    if (command.chipper) {
+        std::cout << "[RobotHub] Chipper command\n";
+        command.chipper_forced = true;
+        command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
     }
 
     return command;
@@ -91,54 +443,33 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "roboteam_input");
     ros::NodeHandle n;
 
-    // Make sure there are only "none's" in the array
-    joyMsgs.fill(boost::none);
+    auto worldSub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
+    auto geomSub = n.subscribe<roboteam_msgs::GeometryData>("vision_geometry", 1, callback_world_geometry);
+    auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    // For each input, construct a subscriber and store it in this vector
-    // If we'd want to switch between inpus based on some topic, this vector
-    // would have to be made global, and subscribers would have to be deleted
-    // from the array and inserted again with proper callbacks.
-    // At the same time, the joy nodes would also have to be (re)configured.
-    // (right now this happens in the launch file roboteam_input.launch)
-    // Right now the joy nodes have no "reconfigure" topics or anything, so
-    // we'd have to write our own joystick code that reads from
-    // /dev/input/js0 et al.
-    std::vector<std::unique_ptr<ros::Subscriber>> subscribers;
-    for (int i = 0; i < NUM_CONTROLLERS; ++i) {
-        // Make a subscriber on the stack
-        auto subscriber = n.subscribe<sensor_msgs::Joy>("js" + std::to_string(i), 1, boost::bind(receiveJoyMsg, i, _1));
-        // Construct a copy on the heap
-        std::unique_ptr<ros::Subscriber> subscriberHeap(new ros::Subscriber(subscriber));
-        // Push it on the vector
-        subscribers.push_back(std::move(subscriberHeap));
-    }
-
-    auto pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 1000);
-
-    // TODO: Right now the roboteam_input's input names (js0, js1) are hardcoded
-    // in the launch file. they should probably also be changeable through an event/topic
-    // However, the joy & joy_node nodes are fixed, so not sure if this is possible
-    // without writing our own joynode code.
-
-    // Flush received messages every 1/30th second
-    ros::Rate fps30(30);
+    ros::Rate fps(60);
 
     while (ros::ok()) {
-        // For every controller...
-        for (int i = 0; i < NUM_CONTROLLERS; ++i) {
-            // If a message is present
-            if (joyMsgs[i]) {
-                // Make a command out of it
-                auto command = makeRobotCommand(i, *joyMsgs[i]);
-                // Send it
-                pub.publish(command);
+        for (auto& joy : joys) {
+            joy.update();
 
-                // Reset the element in the array
-                joyMsgs[i] = boost::none;
+            if (joy.msg) {
+                if (joy.mode == "our keeper") {
+                    auto command = makeKeeperRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                } else if (joy.mode == "normal") {
+                    auto command = makeRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                } else {
+                    auto command = makeRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                }
             }
+            
+            // joy.msg = boost::none;
         }
 
-        fps30.sleep();
+        fps.sleep();
 
         ros::spinOnce();
     }

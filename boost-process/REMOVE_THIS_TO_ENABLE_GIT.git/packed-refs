@@ -1,0 +1,12 @@
+# pack-refs with: peeled fully-peeled 
+a781207ab6e2db10ff438dba40efd92ba7bad728 refs/remotes/origin/ci
+3a733827eb6af1030e337479c47a42cb3f457e45 refs/remotes/origin/develop
+cf2a196d40770ac5b52e7a09f86a9e82d48f2480 refs/remotes/origin/execvpe
+c074630a1ffed6c2b1ace5ce05e82251a7d48715 refs/remotes/origin/execvpe_test
+6b433c8788dddd0d2a451648bb3b3c7b39ac7349 refs/remotes/origin/master
+248af92cfa451e8c31668ca9b7ed7b067ddd5f35 refs/remotes/origin/options
+a920b38d461427275b526340e8481e9adae2cb26 refs/remotes/origin/travis
+85345157d36c81cb3b065d91d83e3616fcb317a7 refs/remotes/origin/variant
+aefd76f7edaf0f58f5d8e1c7ed537c7eb7211b9c refs/tags/alpha06
+bd554a331662821f7b1efd55fc64fefd5227cdc6 refs/tags/beta0.6
+39c8448310178c12c1e0eaa2674dcd2fc2b5ae3b refs/tags/boost_review

@@ -1,0 +1,21 @@
+<library path="src">
+  <class name="RoboTeam input configurer" type="input_plugin.input_plugin.InputPlugin" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      An example Python GUI plugin to create a great user interface.
+    </description>
+    <qtgui>
+        <group>
+          <label>RoboTeam Twente</label>
+          <icon type="file">icon.png</icon>
+        </group>
+        <!--
+        <group>
+        <label>Subgroup</label>
+        </group>
+        -->
+      <label>RoboTeam input configurer</label>
+      <icon type="theme">input-keyboard</icon>
+      <statustip>Great user interface to provide real value.</statustip>
+    </qtgui>
+  </class>
+</library>
