@@ -28,12 +28,28 @@ namespace rtt {
 
     /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node*/
     const std::map<Xbox360Controller, int> xbox360mapping = {
+            // Axes
             { Xbox360Controller::LeftStickX   , 0  },  // Drive forward / backward
             { Xbox360Controller::LeftStickY   , 1  },  // Strafe left / right
+            { Xbox360Controller::LeftTrigger  , 2  },
             { Xbox360Controller::RightStickX  , 3  },  // Turn left / right
+            { Xbox360Controller::RightStickY  , 4  },
+            { Xbox360Controller::RightTrigger , 5  },  // Turbo
+            { Xbox360Controller::DpadX        , 6  },
+            { Xbox360Controller::DpadY        , 7  },
+
+            // Buttons
+            { Xbox360Controller::A, 0 },
+            { Xbox360Controller::B, 1 },
+            { Xbox360Controller::X, 2 },
+            { Xbox360Controller::Y, 3 },
             { Xbox360Controller::LeftBumper   , 4  },  // Dribbler
             { Xbox360Controller::RightBumper  , 5  },  // Kicker
-            { Xbox360Controller::RightTrigger , 5  },  // Turbo
+            { Xbox360Controller::Back         , 6  },
+            { Xbox360Controller::Start        , 7  },
+            { Xbox360Controller::Guide        , 8  },
+            { Xbox360Controller::LeftStick    , 9  },
+            { Xbox360Controller::RightStick   , 10 },
             { Xbox360Controller::DpadLeft     , 11 },  // ID -= 1
             { Xbox360Controller::DpadRight    , 12 },  // ID += 1
     };
@@ -55,14 +71,13 @@ namespace rtt {
         JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {}
 
         void init(){
-            std::cout << "[JoyEntry::init]" << std::endl;
+            std::cout << "[JoyEntry::init] " << input << " connected to robot " << robotID << std::endl;
             setToInput("js" + std::to_string(MY_ID));
         }
 
         void setToInput(std::string newInput) {
 
-            std::cout << "[JoyEntry::setToInput] " << newInput << std::endl;
-            std::cout << "[JoyEntry::setToInput] previous: " << input << std::endl;
+            std::cout << "[JoyEntry::setToInput] now listening to " << newInput << std::endl;
 
             if (newInput == input)
                 return;
@@ -125,41 +140,8 @@ namespace rtt {
             this->msg = *msg;
         }
 
-        /*void update() {
-            std::cout << "[JoyEntry::update] Updating" << std::endl;
-
-            std::string newInput;
-            int newRobotID = -1;
-            std::string newJoyType;
-            std::string newMode;
-
-            //ros::param::get("input" + std::to_string(MY_ID) + "/input", newInput);
-            //ros::param::get("input" + std::to_string(MY_ID) + "/robot", newRobotID);
-            //ros::param::get("input" + std::to_string(MY_ID) + "/joyType", newJoyType);
-            //ros::param::get("input" + std::to_string(MY_ID) + "/mode", newMode);
-
-            //setToInput(newInput);
-
-            //robotID = newRobotID;
-
-            //joyType = newJoyType;
-
-            //mode = newMode;
-        }*/
-
-        /*template<typename T>
-        void setParam(string key, T value){
-            key = "input" + std::to_string(MY_ID) + "/" + key;
-            std::cout << "[JoyEntry::setParam] " << key << " -> " << value << std::endl;
-            ros::param::set(key, value);
-
-            // Reset robot velocity
-            speedState.x = 0;
-            speedState.y = 0;
-
-        }*/
-
         void setRobotID(int id){
+            std::cout << "[JoyEntry::setRobotID] " << input << " connected to robot " << id << std::endl;
             robotID = id;
 
             // Reset robot velocity
@@ -173,8 +155,12 @@ namespace rtt {
         void release(Xbox360Controller btn){
             btnState[btn] = false;
         }
-        bool isPressed(Xbox360Controller btn){
-            return btnState.at(btn);
+        bool isPressed(Xbox360Controller btn) {
+            try {
+                return btnState.at(btn);
+            }catch(std::out_of_range ex){
+                return false;
+            }
         }
     };
 
@@ -291,18 +277,20 @@ namespace rtt {
 
 
     roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy const &msg) {
-        std::cout << "[makeRobotCommand] MY_ID: " << joy.MY_ID << " input: " << joy.input << " robotID: " << joy.robotID << std::endl;
+//        std::cout << "[makeRobotCommand] MY_ID: " << joy.MY_ID << " input: " << joy.input << " robotID: " << joy.robotID << std::endl;
 
         roboteam_msgs::RobotCommand command;
 
         command.id = joy.robotID;
+
+
 
         /* ==== Check if ID has to be switched lower ==== */
         Xbox360Controller btn;
         btn = Xbox360Controller::DpadLeft;
         if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If DpadLeft is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
-                joy.setRobotID((joy.robotID + 15) % 16);         // If not, decrement id
+                joy.setRobotID((joy.robotID + 15) % 16);                // If not, decrement id
             joy.press(btn);                                         // Set button state to pressed
         }else                                                   // If DpadLeft is not pressed
             joy.release(btn);                                       // Set button state to released
@@ -310,7 +298,7 @@ namespace rtt {
         btn = Xbox360Controller::DpadRight;
         if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If DpadRight is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
-                joy.setRobotID((joy.robotID + 1) % 16);          // If not, increment id
+                joy.setRobotID((joy.robotID + 1) % 16);                 // If not, increment id
             joy.press(btn);                                         // Set button state to pressed
         }else                                                   // If DpadRight is not pressed
             joy.release(btn);                                       // Set button state to released
@@ -338,12 +326,23 @@ namespace rtt {
         double rot_mult = ROTATION_MULTIPLIER + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
         command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rot_mult;
 
-        // ==== Set dribbler and kicker
-        command.dribbler = getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) > 0;
-        command.kicker   = getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) > 0;
+
+
+        /* ==== Set Kicker ==== */
+        btn = Xbox360Controller::RightBumper;
+        if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If DpadLeft is pressed
+            if(!joy.isPressed(btn))                                 // Check if it was already pressed before
+                command.kicker = true;                                  // If not, decrement id
+            joy.press(btn);                                         // Set button state to pressed
+        }else                                                   // If DpadLeft is not pressed
+            joy.release(btn);                                       // Set button state to released
+        /* ==================== */
+
+        // ==== Set dribbler
+        command.dribbler = getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) == 1;
 
         if (command.kicker) {
-            std::cout << "[makeRobotCommand] Kicker command\n";
+            std::cout << "[makeRobotCommand] Kicker command for robot " << joy.robotID << std::endl;
         }
 
         /* ==== Check speed boundaries ==== */
@@ -357,9 +356,9 @@ namespace rtt {
         if      (fabs(command.w) < ROTATION_MIN) { command.w = 0.0; }
         /* ================================ */
 
-        std::cout << "[makeRobotCommand] x_vel: " << command.x_vel << std::endl;
-        std::cout << "[makeRobotCommand] y_vel: " << command.y_vel << std::endl;
-        std::cout << "[makeRobotCommand] w    : " << command.w     << std::endl;
+//        std::cout << "[makeRobotCommand] x_vel: " << command.x_vel << std::endl;
+//        std::cout << "[makeRobotCommand] y_vel: " << command.y_vel << std::endl;
+//        std::cout << "[makeRobotCommand] w    : " << command.w     << std::endl;
 
         return command;
     }
@@ -452,7 +451,7 @@ int main(int argc, char **argv) {
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    ros::Rate fps(4);
+    ros::Rate fps(60);
 
     for (auto &joy : joys) {
         joy.init();
@@ -461,11 +460,10 @@ int main(int argc, char **argv) {
     while (ros::ok()) {
 
         std::time_t t = std::time(0);
-        std::cout << "\n=======================================" << t
-                  << "============================================\n";
+//        std::cout << "\n=======================================" << t << "============================================\n";
 
         for (auto &joy : joys) {
-            std::cout << "\n----------------------------------\n";
+//            std::cout << "\n----------------------------------\n";
 
             if (joy.msg) {
                 auto command = makeRobotCommand(joy, *joy.msg);
