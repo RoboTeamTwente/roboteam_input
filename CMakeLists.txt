@@ -56,7 +56,7 @@ include_directories(
 
 
 
-add_executable(joystick_input src/joystick_input.cpp)
+add_executable(joystick_input src/joystick_input.cpp src/joystick_enums.h)
 target_link_libraries(joystick_input ${catkin_LIBRARIES})
 add_dependencies(joystick_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
