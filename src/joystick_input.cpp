@@ -41,8 +41,8 @@ namespace rtt {
             // Buttons
             { Xbox360Controller::A, 0 },
             { Xbox360Controller::B, 1 },
-            { Xbox360Controller::X, 2 },
-            { Xbox360Controller::Y, 3 },
+            { Xbox360Controller::X, 2 },    // Turn clockwise
+            { Xbox360Controller::Y, 3 },    // Turn counterclockwise
             { Xbox360Controller::LeftBumper   , 4  },  // Dribbler
             { Xbox360Controller::RightBumper  , 5  },  // Kicker
             { Xbox360Controller::Back         , 6  },
@@ -165,100 +165,7 @@ namespace rtt {
     };
 
     int JoyEntry::intSupplier = 0;
-
     std::array<JoyEntry, NUM_CONTROLLERS> joys;
-
-    roboteam_msgs::World lastWorld;
-
-    void callback_world_state(const roboteam_msgs::WorldConstPtr &world) {
-        lastWorld = *world;
-    }
-
-    roboteam_msgs::GeometryFieldSize lastField;
-
-    void callback_world_geometry(const roboteam_msgs::GeometryDataConstPtr &geom) {
-        lastField = geom->field;
-        std::cout << "Got geometry update!\n";
-    }
-
-
-    /*
-    double cleanAngle(double angle) {
-        if (angle <= -M_PI) {
-            return fmod(angle - M_PI, (2 * M_PI)) + M_PI;
-        } else if (angle > M_PI) {
-            return fmod(angle + M_PI, (2 * M_PI)) - M_PI;
-        } else {
-            return angle;
-        }
-    }
-
-
-
-    class RobotPosController {
-    public:
-        Vector2 positionController(Vector2 position, Vector2 target) {
-            std::cout << "[RobotPosController.positionController] " << position << " " << target << std::endl;
-            double maxSpeed = 4.0;
-
-            double pGain = 2;
-            double dGain = 4;
-            double iGain = 0;
-
-            auto posError = target - position;
-
-            integrator = integrator + posError;
-
-            Vector2 requiredSpeed = posError * pGain;
-            requiredSpeed = requiredSpeed + (posError - prevPosError) * dGain;
-            requiredSpeed = requiredSpeed + integrator * iGain;
-
-            prevPosError = posError;
-
-            if (requiredSpeed.length() > maxSpeed) {
-                requiredSpeed = requiredSpeed.normalize() * maxSpeed;
-            }
-
-            return requiredSpeed;
-        }
-
-
-        double rotationController(double angle, double target) {
-            std::cout << "[RobotPosController.rotationController] " << angle << " " << target << std::endl;
-            double pGainRot = 4.0;
-            double dGainRot = 6.0;
-            double maxRotSpeed = 7.0;
-
-            auto angleError = target - angle;
-
-            angleError = cleanAngle(angleError);
-            double requiredRotSpeed = angleError * pGainRot;
-            requiredRotSpeed += (angleError - prevAngleError) * dGainRot;
-
-            prevAngleError = angleError;
-
-            if (fabs(requiredRotSpeed) > maxRotSpeed) {
-                requiredRotSpeed = requiredRotSpeed / fabs(requiredRotSpeed) * maxRotSpeed;
-            }
-
-            return requiredRotSpeed;
-        }
-
-    private:
-        Vector2 prevPosError;
-        Vector2 integrator;
-        double prevAngleError = 0;
-
-    };
-
-    Vector2 worldToRobotFrame(Vector2 requiredv, double rotation) {
-        std::cout << "[worldToRobotFrame] " << requiredv << " " << rotation << std::endl;
-        Vector2 robotRequiredv;
-        robotRequiredv.x = requiredv.x * cos(-rotation) - requiredv.y * sin(-rotation);
-        robotRequiredv.y = requiredv.x * sin(-rotation) + requiredv.y * cos(-rotation);
-        return robotRequiredv;
-    }
-    */
 
     template<typename T> T getVal(const std::vector<T> &values, int index) {
         if (index < values.size()) {
@@ -267,10 +174,10 @@ namespace rtt {
         return T(0);
     }
 
-    const double SMOOTH_FACTOR = 0.05;
-    const double SPEED_MULTIPLIER = 2;
+    const double SMOOTH_FACTOR = 0.3;
+    const double SPEED_MULTIPLIER = 1;
     const double SPEED_MIN = 0.5;
-    const double SPEED_MAX = 5;
+    const double SPEED_MAX = 2;
 
     const double ROTATION_MULTIPLIER = 5;
     const double ROTATION_MIN = 1.5;
@@ -306,8 +213,35 @@ namespace rtt {
 
 
 
+        /* ==== Turn clockwise ==== */
+        if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))){
+            command.y_vel = 0.8;
+            command.w = -2;
+            return command;
+        }
+        /* ======================== */
+
+        /* ==== Turn counterclockwise ==== */
+        if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::B))){
+            command.y_vel = -0.8;
+            command.w = 2;
+            return command;
+        }
+        /* =============================== */
+
+
+        double speedmult = SPEED_MULTIPLIER;
+
+        /* ==== Turbo ==== */
+            /* For some reason, if the RightTrigger is released and hasn't been pressed yet, this reads 0 instead of 1 */
+            /* When the trigger is pressed halfway, the value -0 is sent, distinguishing is from 0 */
+//        double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
+//        if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal))
+//            RightTriggerVal = 1;
+//        speedmult = SPEED_MULTIPLIER + (1 - RightTriggerVal);
+
+
         /* ==== Smoothing ==== */
-        double speedmult = SPEED_MULTIPLIER + (1 - getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger)));
         /* Smooth x */
         double diffX = -joy.speedState.x + speedmult * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
         joy.speedState.x += SMOOTH_FACTOR * diffX;
@@ -323,7 +257,7 @@ namespace rtt {
         //command.x_vel = 3 * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX);
 
         // ==== Rotation
-        double rot_mult = ROTATION_MULTIPLIER + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
+        double rot_mult = ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
         command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rot_mult;
 
 
@@ -342,6 +276,7 @@ namespace rtt {
         command.dribbler = getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) == 1;
 
         if (command.kicker) {
+            command.kicker_vel = 3;
             std::cout << "[makeRobotCommand] Kicker command for robot " << joy.robotID << std::endl;
         }
 
@@ -356,86 +291,8 @@ namespace rtt {
         if      (fabs(command.w) < ROTATION_MIN) { command.w = 0.0; }
         /* ================================ */
 
-//        std::cout << "[makeRobotCommand] x_vel: " << command.x_vel << std::endl;
-//        std::cout << "[makeRobotCommand] y_vel: " << command.y_vel << std::endl;
-//        std::cout << "[makeRobotCommand] w    : " << command.w     << std::endl;
-
         return command;
     }
-
-    /*
-    double keeperSpeed = 2.0;
-
-    std::map<int, RobotPosController> angleControllers;
-    std::map<int, double> targetAngles;
-
-    roboteam_msgs::RobotCommand makeKeeperRobotCommand(JoyEntry &joy, sensor_msgs::Joy const &msg) {
-        roboteam_msgs::World world = lastWorld;
-
-        const JoystickMap &joystickMap = joystickTypeMap.at(joy.joyType);
-
-        // Get the robot id
-        int ROBOT_ID = joy.robotID;
-
-        int const FPS = 5;
-        double const FIELD_W = lastField.field_width;
-        double const FIELD_L = lastField.field_length;
-
-        double keeperYVel = getVal(msg.axes, joystickMap.yAxis) * keeperSpeed;
-
-        //Disance from goal sideways
-        double keeperXVel = getVal(msg.axes, joystickMap.xAxis) * keeperSpeed;
-
-        Vector2 keeperPos = Vector2(keeperYVel, keeperXVel);
-
-        roboteam_msgs::WorldRobot robot;
-
-        if (auto robotOpt = lookup_our_bot(ROBOT_ID, &world)) {
-            robot = *robotOpt;
-        } else {
-            roboteam_msgs::RobotCommand r;
-            r.id = ROBOT_ID;
-            std::cout << "[RobotHub] Keeper robot with id " << ROBOT_ID << " not found\n";
-            return r;
-        }
-
-        Vector2 requiredSpeed = worldToRobotFrame(keeperPos, robot.angle);
-
-        if (targetAngles.find(joy.MY_ID) == targetAngles.end()) {
-            targetAngles[joy.MY_ID] = robot.angle;
-        }
-
-        targetAngles[joy.MY_ID] += getVal(msg.axes, joystickMap.rotationXAxis) * (2 * M_PI) * 0.6 * (1.0 / FPS);
-
-        double requiredW = angleControllers[joy.MY_ID].rotationController(robot.angle, targetAngles[joy.MY_ID]);
-
-        roboteam_msgs::RobotCommand command;
-        command.id = ROBOT_ID;
-        command.y_vel = requiredSpeed.y;
-        command.x_vel = requiredSpeed.x;
-
-        command.w = requiredW;
-        command.dribbler = getVal(msg.buttons, joystickMap.dribblerAxis) > 0;
-
-        command.kicker = getVal(msg.buttons, joystickMap.kickerAxis) > 0;
-        if (command.kicker) {
-            std::cout << "[RobotHub] Kicker command\n";
-        }
-
-        if (joystickMap.chipperAxis != -1) {
-            command.chipper = getVal(msg.buttons, joystickMap.chipperAxis) > 0;
-        } else if (joystickMap.chipperContinuousAxis != -1) {
-            command.chipper = getVal(msg.axes, joystickMap.chipperContinuousAxis) <= -0.5;
-        }
-
-        if (command.chipper) {
-            std::cout << "[RobotHub] Chipper command\n";
-            command.chipper_vel = roboteam_msgs::RobotCommand::MAX_CHIPPER_VEL;
-        }
-
-        return command;
-    }*/
-
 } // rtt
 
 int main(int argc, char **argv) {
@@ -444,10 +301,6 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "roboteam_input");
     ros::NodeHandle n;
 
-    // Subscribe to world_state
-    ros::Subscriber worldSub = n.subscribe<roboteam_msgs::World>("world_state", 10, callback_world_state);
-    // Subscribe to world_geometry
-    ros::Subscriber geomSub = n.subscribe<roboteam_msgs::GeometryData>("vision_geometry", 10, callback_world_geometry);
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
@@ -463,28 +316,10 @@ int main(int argc, char **argv) {
 //        std::cout << "\n=======================================" << t << "============================================\n";
 
         for (auto &joy : joys) {
-//            std::cout << "\n----------------------------------\n";
-
             if (joy.msg) {
                 auto command = makeRobotCommand(joy, *joy.msg);
                 pub.publish(command);
             }
-
-            /*
-                if (joy.mode == "our keeper") {
-                    auto command = makeKeeperRobotCommand(joy, *joy.msg);
-                    pub.publish(command);
-                } else
-                if (joy.mode == "normal") {
-                    auto command = makeRobotCommand(joy, *joy.msg);
-                    pub.publish(command);
-                } else {
-                    auto command = makeRobotCommand(joy, *joy.msg);
-                    pub.publish(command);
-                }
-            }*/
-
-            // joy.msg = boost::none;
         }
 
         fps.sleep();
