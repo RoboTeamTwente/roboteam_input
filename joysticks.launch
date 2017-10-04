@@ -1,5 +1,3 @@
 <launch>
-
     <node pkg="roboteam_input" type="joystick_input" name="joystick_input" output="screen" />
-
 </launch>
