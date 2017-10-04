@@ -1,6 +1,5 @@
 <launch>
     <node pkg="rosserial_python" type="serial_nody.py" name="rosserial_node" output="screen" args="/dev/ttyACM0" />
-
     <node pkg="roboteam_input" type="roboteam_input" name="roboteam_input" output="screen" />
 
     <param name="input0/input" value="js0" />
