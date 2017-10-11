@@ -52,6 +52,8 @@ namespace rtt {
             { Xbox360Controller::RightStick   , 10 },
             { Xbox360Controller::DpadLeft     , 11 },  // ID -= 1
             { Xbox360Controller::DpadRight    , 12 },  // ID += 1
+            { Xbox360Controller::DpadUp       , 13 },
+            { Xbox360Controller::DpadDown     , 14 },
     };
 
     struct JoyEntry {
