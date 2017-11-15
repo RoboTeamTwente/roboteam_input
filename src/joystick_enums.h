@@ -27,11 +27,7 @@ enum class Xbox360Controller {
     Start,
     Guide,
     LeftStick,
-    RightStick,
-    DpadLeft,
-    DpadRight,
-    DpadUp,
-    DpadDown
+    RightStick
 };
 
-#endif //ROBOTEAM_INPUT_JOYSTICK_ENUMS_H
+#endif ROBOTEAM_INPUT_JOYSTICK_ENUMS_H

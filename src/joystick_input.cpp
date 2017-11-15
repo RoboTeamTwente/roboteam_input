@@ -35,7 +35,7 @@ namespace rtt {
             { Xbox360Controller::RightStickX  , 3  },  // Turn left / right
             { Xbox360Controller::RightStickY  , 4  },
             { Xbox360Controller::RightTrigger , 5  },  // Turbo
-            { Xbox360Controller::DpadX        , 6  },
+            { Xbox360Controller::DpadX        , 6  },  // Left : ID -=1 / Right : ID += 1
             { Xbox360Controller::DpadY        , 7  },
 
             // Buttons
@@ -49,11 +49,7 @@ namespace rtt {
             { Xbox360Controller::Start        , 7  },
             { Xbox360Controller::Guide        , 8  },
             { Xbox360Controller::LeftStick    , 9  },
-            { Xbox360Controller::RightStick   , 10 },
-            { Xbox360Controller::DpadLeft     , 11 },  // ID -= 1
-            { Xbox360Controller::DpadRight    , 12 },  // ID += 1
-            { Xbox360Controller::DpadUp       , 13 },
-            { Xbox360Controller::DpadDown     , 14 },
+            { Xbox360Controller::RightStick   , 10 }
     };
 
     struct JoyEntry {
@@ -196,20 +192,17 @@ namespace rtt {
 
         /* ==== Check if ID has to be switched lower ==== */
         Xbox360Controller btn;
-        btn = Xbox360Controller::DpadLeft;
-        if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If DpadLeft is pressed
+        btn = Xbox360Controller::DpadX;
+        if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
                 joy.setRobotID((joy.robotID + 15) % 16);                // If not, decrement id
             joy.press(btn);                                         // Set button state to pressed
-        }else                                                   // If DpadLeft is not pressed
-            joy.release(btn);                                       // Set button state to released
-
-        btn = Xbox360Controller::DpadRight;
-        if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If DpadRight is pressed
+        }else
+        if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){    // If DpadRight is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
                 joy.setRobotID((joy.robotID + 1) % 16);                 // If not, increment id
             joy.press(btn);                                         // Set button state to pressed
-        }else                                                   // If DpadRight is not pressed
+        }else                                                   // If Dpad is not pressed
             joy.release(btn);                                       // Set button state to released
         /* ============================================== */
 
@@ -263,20 +256,22 @@ namespace rtt {
         command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rot_mult;
 
 
-
         /* ==== Set Kicker ==== */
         btn = Xbox360Controller::RightBumper;
-        if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If DpadLeft is pressed
+        if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If RightBumper is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
-                command.kicker = true;                                  // If not, decrement id
+                command.kicker = true;                                  // If not, activate kicker
             joy.press(btn);                                         // Set button state to pressed
-        }else                                                   // If DpadLeft is not pressed
+        }else                                                   // If RightBumper is not pressed
             joy.release(btn);                                       // Set button state to released
         /* ==================== */
+
 
         // ==== Set dribbler
         command.dribbler = getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) == 1;
 
+
+        // ==== Set kicker velocity
         if (command.kicker) {
             command.kicker_vel = 3;
             std::cout << "[makeRobotCommand] Kicker command for robot " << joy.robotID << std::endl;
