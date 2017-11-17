@@ -25,24 +25,24 @@ bool cmdOptionExists(const std::vector<std::string>& args, const std::string& op
 }
 
 std::vector<SDL_Keycode> const robotIDNumKeys = {
-    SDLK_0,  
-    SDLK_1,  
-    SDLK_2,  
-    SDLK_3,  
-    SDLK_4,  
-    SDLK_5,  
-    SDLK_6,  
-    SDLK_7,  
-    SDLK_8,  
+    SDLK_0,
+    SDLK_1,
+    SDLK_2,
+    SDLK_3,
+    SDLK_4,
+    SDLK_5,
+    SDLK_6,
+    SDLK_7,
+    SDLK_8,
     SDLK_9
 };
 
 std::vector<SDL_Keycode> const robotIDLetterKeys = {
-    SDLK_a,  
-    SDLK_b,  
-    SDLK_c,  
-    SDLK_d,  
-    SDLK_e,  
+    SDLK_a,
+    SDLK_b,
+    SDLK_c,
+    SDLK_d,
+    SDLK_e,
     SDLK_f
 };
 
@@ -73,6 +73,8 @@ double const MAX_VEL = 6;
 double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
 int const MAX_ID = 16;
 
+int const MIN_GENEVA_STATE = -2;
+int const MAX_GENEVA_STATE = 2;
 
 
 struct KickerTracker {
@@ -123,7 +125,7 @@ struct KickerTracker {
 
         return false;
     }
-    
+
     ros::NodeHandle n;
     ros::Publisher commandPub;
     ros::Publisher kickerPub;
@@ -136,7 +138,7 @@ struct KickerTracker {
 
 } ;
 
-void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double currentW, int currentID, KickerTracker const & kickerTracker) {
+void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double currentW, int currentGenevaState, int currentID, KickerTracker const & kickerTracker) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
     int offsetX = 10;
@@ -191,7 +193,7 @@ void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double 
     velRect.h = barHeight;
     SDL_RenderFillRect(renderer, &velRect);
 
-    // Angle
+    // Angle Robot
     int pictoStartY = startY + barHeight + spacing + barHeight + spacing;
     int pictoEndY = pictoStartY + barHeight;
     SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoStartY);
@@ -204,8 +206,40 @@ void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double 
     wRect.h = barHeight;
     SDL_RenderFillRect(renderer, &wRect);
 
+    // Geneva Drive
+    {
+        int extraSpacing = barHeight + spacing + barHeight + spacing + barHeight + spacing;
+        int pictoStartY = startY + extraSpacing;
+        int pictoEndY = pictoStartY + barHeight;
+        int spacing = 10;
+
+        SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX + pictoWidth / 2, pictoEndY);
+        SDL_RenderDrawLine(renderer, pictoStartX + pictoWidth / 2, pictoEndY, pictoEndX, pictoStartY);
+        SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX, pictoStartY + 10);
+        SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX + 7, pictoStartY + 6);
+        SDL_RenderDrawLine(renderer, pictoEndX - 7, pictoStartY + 6, pictoEndX, pictoStartY);
+        SDL_RenderDrawLine(renderer, pictoEndX, pictoStartY, pictoEndX, pictoStartY + 10);
+
+        int boxSize = barHeight;
+        for (int i = 0; i < 5; ++i) {
+            //genevaState can be -2 through 2
+            int genevaState = i - 2;
+            SDL_Rect genevaRect;
+            genevaRect.x = startX + i * (boxSize + spacing);
+            genevaRect.y = startY + extraSpacing;
+            genevaRect.w = boxSize;
+            genevaRect.h = boxSize;
+            if (genevaState == currentGenevaState) {
+                SDL_RenderFillRect(renderer, &genevaRect);
+            } else {
+                SDL_RenderDrawRect(renderer, &genevaRect);
+            }
+        }
+    }
+
     // ID
-    pictoStartY = startY + barHeight + spacing + barHeight + spacing + barHeight + spacing;
+    int extraSpacing = barHeight + spacing + barHeight + spacing + barHeight + spacing + barHeight + spacing + barHeight;
+    pictoStartY = startY + extraSpacing;
     pictoEndY = pictoStartY + barHeight;
 
     SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoEndX, pictoStartY);
@@ -228,7 +262,7 @@ void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double 
 
             SDL_Rect outlineRect;
             outlineRect.x = startX + x * (boxSize + boxSpacing);
-            outlineRect.y = y * (boxSize + boxSpacing) + (startY + barHeight + spacing + barHeight + spacing + barHeight + spacing);
+            outlineRect.y = y * (boxSize + boxSpacing) + (startY + extraSpacing);
             outlineRect.w = boxSize;
             outlineRect.h = boxSize;
 
@@ -267,7 +301,7 @@ void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double 
         outlineRect.y = bigExclamationStartY;
         outlineRect.w = bigExclamationWidth;
         outlineRect.h = bigExclamationBarHeight;
-        SDL_RenderFillRect(renderer, &outlineRect); 
+        SDL_RenderFillRect(renderer, &outlineRect);
 
         outlineRect.x = outlineRect.x;
         outlineRect.y = outlineRect.y + bigExclamationBarHeight + bigExclamationBetween;
@@ -288,7 +322,7 @@ struct Direction {
             } else {
                 modifierInt = -1;
                 modifierBool = false;
-            } 
+            }
 
             auto key = e.key.keysym.sym;
 
@@ -310,8 +344,14 @@ struct Direction {
                 doKick = modifierBool;
             } else if (key == KEY_CHIP) {
                 doChip = modifierBool;
+            } else if (key == KEY_ROTATE_LEFT && e.type == SDL_KEYDOWN) {
+                currentGenevaState--;
+            } else if (key == KEY_ROTATE_RIGHT && e.type == SDL_KEYDOWN) {
+                currentGenevaState++;
             }
-        } 
+        }
+        if (currentGenevaState<MIN_GENEVA_STATE) currentGenevaState = MIN_GENEVA_STATE;
+        if (currentGenevaState>MAX_GENEVA_STATE) currentGenevaState = MAX_GENEVA_STATE;
     }
 
     int x_vel = 0;
@@ -321,12 +361,15 @@ struct Direction {
     bool enKick = false;
     bool doChip = false;
     bool doDribble = false;
+    int currentGenevaState = 0;
 
     SDL_Keycode const KEY_STRAFE_LEFT = SDLK_z;
     SDL_Keycode const KEY_STRAFE_RIGHT = SDLK_x;
     SDL_Keycode const KEY_DRIBBLE = SDLK_SPACE;
     SDL_Keycode const KEY_KICK = SDLK_v;
     SDL_Keycode const KEY_CHIP = SDLK_n;
+    SDL_Keycode const KEY_ROTATE_LEFT = SDLK_PAGEUP;
+    SDL_Keycode const KEY_ROTATE_RIGHT = SDLK_PAGEDOWN;
 } ;
 
 struct Speed {
@@ -347,7 +390,7 @@ struct Speed {
             } else if (key == KEY_DECREASE_KICK) {
                 currentKick--;
             }
-        } 
+        }
 
         if (currentVel > MAX_VEL) currentVel = MAX_VEL;
         if (currentVel < 0) currentVel = 0;
@@ -455,7 +498,7 @@ Controls:10
     int sizeY = 400;
     SDL_Window* window;
     SDL_Renderer* renderer;
- 
+
     if (SDL_Init( SDL_INIT_EVERYTHING ) != 0) {
         // Something failed, print error and exit.
         std::cout << " Failed to initialize SDL : " << SDL_GetError() << std::endl;
@@ -523,12 +566,12 @@ Controls:10
                 if (isCtrlPressed(e) && key == SDLK_c) {
                     quit = true;
                 }
-                
+
                 // Handle escape & q
                 if (key == SDLK_ESCAPE || key == SDLK_q) {
                     quit = true;
                 }
-                
+
                 // Handle ID switching
                 if (std::find(robotIDAllKeys.begin(), robotIDAllKeys.end(), key) != robotIDAllKeys.end()) {
                     if (!(key == SDLK_c && isCtrlPressed(e))) {
@@ -538,9 +581,9 @@ Controls:10
                             std::cout << "Bad ID key pressed, retaining original ID.";
                         }
                     }
-                } 
+                }
             }
-            
+
             // Handle speed & direction
             speed.handleEvent(e);
             direction.handleEvent(e);
@@ -559,7 +602,7 @@ Controls:10
         SDL_RenderClear(renderer);
 
         // Draw the gui and refresh the screen
-        drawGui(renderer, speed.currentKick, speed.currentVel, speed.currentW, currentID, kickerTracker);
+        drawGui(renderer, speed.currentKick, speed.currentVel, speed.currentW, direction.currentGenevaState, currentID, kickerTracker);
         SDL_RenderPresent(renderer);
     }
 
