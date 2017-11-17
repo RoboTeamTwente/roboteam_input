@@ -76,69 +76,7 @@ int const MAX_ID = 16;
 int const MIN_GENEVA_STATE = -2;
 int const MAX_GENEVA_STATE = 2;
 
-
-struct KickerTracker {
-
-    KickerTracker() : commandPub(n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 100))
-                    , kickerPub(n.advertise<std_msgs::Bool>("chargeKicker", 100))
-                    , robotIsPrimed{}
-                    { }
-
-    void handleEvent(SDL_Event e) {
-        if (e.type != SDL_KEYDOWN) {
-            return;
-        }
-
-        if (e.key.keysym.sym == SDLK_F8) {
-            if (isCharging) {
-                isCharging = false;
-            } else {
-                isCharging = true;
-                robotIsPrimed.fill(true);
-            }
-
-            std_msgs::Bool msg;
-            msg.data = isCharging;
-            kickerPub.publish(msg);
-        } else if (e.key.keysym.sym == SDLK_F10) {
-            if (!isCharging) {
-                roboteam_msgs::RobotCommand command;
-                command.kicker = true;
-                command.kicker_vel = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
-                command.kicker_forced = true;
-
-                for (int i = 0; i < 16; ++i) {
-                    if (robotIsPrimed.at(i)) {
-                        command.id = i;
-                        commandPub.publish(command);
-                        robotIsPrimed.at(i) = false;
-                    }
-                }
-            }
-        }
-    }
-
-    bool isPrimed(int id) const {
-        if (id >= 0 && id <= 16) {
-            return robotIsPrimed.at(id);
-        }
-
-        return false;
-    }
-
-    ros::NodeHandle n;
-    ros::Publisher commandPub;
-    ros::Publisher kickerPub;
-
-    std::array<bool, 16> robotIsPrimed;
-    bool isCharging = false;
-
-    SDL_Keycode KEY_TOGGLE_CHARGING = SDLK_F8;
-    SDL_Keycode KEY_DISCHARGE = SDLK_F10;
-
-} ;
-
-void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double currentW, int currentGenevaState, int currentID, KickerTracker const & kickerTracker) {
+void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double currentW, int currentGenevaState, int currentID) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
     int offsetX = 10;
@@ -271,43 +209,7 @@ void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double 
             } else {
                 SDL_RenderDrawRect(renderer, &outlineRect);
             }
-
-            if (kickerTracker.isPrimed(id)) {
-                outlineRect.x = outlineRect.x + boxSize + exclamationSpacing;
-                outlineRect.y = outlineRect.y;
-                outlineRect.w = exclamationWidth;
-                outlineRect.h = exclamationBarHeight;
-                SDL_RenderFillRect(renderer, &outlineRect);
-
-                outlineRect.x = outlineRect.x;
-                outlineRect.y = outlineRect.y + boxSize - outlineRect.w;
-                outlineRect.w = outlineRect.w;
-                outlineRect.h = outlineRect.w;
-                SDL_RenderFillRect(renderer, &outlineRect);
-            }
         }
-    }
-
-    int spacingAfterBoxes = 0;
-    int bigExclamationStartY = startY + barHeight + spacing + barHeight + spacing + barHeight + spacing + (rows * (boxSize + boxSpacing)) + spacingAfterBoxes;
-    int bigExclamationBarHeight = 65;
-    int bigExclamationBetween = 10;
-    int bigExclamationWidth = 20;
-
-    // KickerTracker exclamation mark
-    if (kickerTracker.isCharging) {
-        SDL_Rect outlineRect;
-        outlineRect.x = startX;
-        outlineRect.y = bigExclamationStartY;
-        outlineRect.w = bigExclamationWidth;
-        outlineRect.h = bigExclamationBarHeight;
-        SDL_RenderFillRect(renderer, &outlineRect);
-
-        outlineRect.x = outlineRect.x;
-        outlineRect.y = outlineRect.y + bigExclamationBarHeight + bigExclamationBetween;
-        outlineRect.w = bigExclamationWidth;
-        outlineRect.h = bigExclamationWidth;
-        SDL_RenderFillRect(renderer, &outlineRect);
     }
 }
 
@@ -446,6 +348,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & 
     }
 
     r.dribbler = direction.doDribble;
+    r.geneva_state = direction.currentGenevaState;
     prevRobotCommand = r;
 
     return r;
@@ -489,7 +392,7 @@ Controls:10
     Numpad 7/9 to decrease/increase kicker velocity
     Numpad 4/6 or F4/F6 to decrease/increase x velocity
     Numpad 1/3 or F1/F3 to decrease/increase angular velocity
-    F8 to turn charging arduino kickers on or off, F10 to discharge kickers
+    PageDown and PageUp to rotate the kicker
 )--";
 
     int posX = 100;
@@ -549,8 +452,6 @@ Controls:10
     // TODO: Maybe base this on role_iterations_per_second?
     ros::Rate fpsRate(60);
 
-    KickerTracker kickerTracker;
-
     // Event loop
     bool quit = false;
     SDL_Event e;
@@ -587,7 +488,6 @@ Controls:10
             // Handle speed & direction
             speed.handleEvent(e);
             direction.handleEvent(e);
-            kickerTracker.handleEvent(e);
         }
 
         // Publish a robot instruction
@@ -602,7 +502,7 @@ Controls:10
         SDL_RenderClear(renderer);
 
         // Draw the gui and refresh the screen
-        drawGui(renderer, speed.currentKick, speed.currentVel, speed.currentW, direction.currentGenevaState, currentID, kickerTracker);
+        drawGui(renderer, speed.currentKick, speed.currentVel, speed.currentW, direction.currentGenevaState, currentID);
         SDL_RenderPresent(renderer);
     }
 
