@@ -35,14 +35,14 @@ namespace rtt {
             { Xbox360Controller::RightStickX  , 3  },  // Turn left / right
             { Xbox360Controller::RightStickY  , 4  },
             { Xbox360Controller::RightTrigger , 5  },  // Turbo
-            { Xbox360Controller::DpadX        , 6  },  // Left : ID -=1 / Right : ID += 1
-            { Xbox360Controller::DpadY        , 7  },
+            { Xbox360Controller::DpadX        , 6  },  // Left : Turn Geneva Drive left / Right : Turn Geneva Drive right
+            { Xbox360Controller::DpadY        , 7  },  // Up : ID +=1 / Down : ID -= 1
 
             // Buttons
             { Xbox360Controller::A, 0 },
-            { Xbox360Controller::B, 1 },
+            { Xbox360Controller::B, 1 },    // Turn counterclockwise
             { Xbox360Controller::X, 2 },    // Turn clockwise
-            { Xbox360Controller::Y, 3 },    // Turn counterclockwise
+            { Xbox360Controller::Y, 3 },    // Enables ID switching as long as it is pressed
             { Xbox360Controller::LeftBumper   , 4  },  // Dribbler
             { Xbox360Controller::RightBumper  , 5  },  // Kicker
             { Xbox360Controller::Back         , 6  },
@@ -63,6 +63,7 @@ namespace rtt {
 
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
+        int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
 
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 
@@ -190,25 +191,65 @@ namespace rtt {
 
 
 
-        /* ==== Check if ID has to be switched lower ==== */
-        Xbox360Controller btn;
-        btn = Xbox360Controller::DpadX;
-        if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
-            if(!joy.isPressed(btn))                                 // Check if it was already pressed before
-                joy.setRobotID((joy.robotID + 15) % 16);                // If not, decrement id
-            joy.press(btn);                                         // Set button state to pressed
-        }else
-        if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){    // If DpadRight is pressed
-            if(!joy.isPressed(btn))                                 // Check if it was already pressed before
-                joy.setRobotID((joy.robotID + 1) % 16);                 // If not, increment id
-            joy.press(btn);                                         // Set button state to pressed
-        }else                                                   // If Dpad is not pressed
-            joy.release(btn);                                       // Set button state to released
-        /* ============================================== */
+        /* ==== DPad control is off by default. While Y is pressed it is enabled ==== */
+        if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::Y))) {
+
+            /* ==== Check if ID has to be switched lower ==== */
+            Xbox360Controller btn;
+            btn = Xbox360Controller::DpadY;
+            if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadUp is pressed
+                bool pressed = joy.isPressed(btn);            // Store whether the button was pressed before
+                joy.press(btn);                               // Set button state to pressed
+                if(!pressed) {                                // Check if it was already pressed before
+                    joy.setRobotID((joy.robotID + 1) % 16);                // If not, increment id
+                    joy.genevaState = 0;                                   // Reset Geneva Drive
+                    command.geneva_state = joy.genevaState;                // Reset Geneva Drive
+                    return command;
+                }
+            }else
+            if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){    // If DpadDown is pressed
+                bool pressed = joy.isPressed(btn);            // Store whether the button was pressed before
+                joy.press(btn);                               // Set button state to pressed
+                if(!pressed) {                                // Check if it was already pressed before
+                    joy.setRobotID((joy.robotID + 15) % 16);                // If not, decrement id
+                    joy.genevaState = 0;                                   // Reset Geneva Drive
+                    command.geneva_state = joy.genevaState;                // Reset Geneva Drive
+                    return command;
+                }
+            }else                                                   // If Dpad is not pressed
+                joy.release(btn);                                       // Set button state to released
+
+            /* ============================================== */
+
+            /* ==== Rotate kicker (Geneva Drive)==== */
+
+            btn = Xbox360Controller::DpadX;
+            if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
+                if(!joy.isPressed(btn)) {                               // Check if it was already pressed before
+                    joy.genevaState--;                                    // Turn Geneva Drive to the left
+                    if (joy.genevaState < -2) {                           // Geneva state cannot go below -2 (such state does not exist)
+                        joy.genevaState = -2;                               // Set the Geneva state back to -2
+                    }
+                }
+                joy.press(btn);                                         // Set button state to pressed
+            } else if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){ // If DpadRight is pressed
+                if(!joy.isPressed(btn)) {                               // Check if it was already pressed before
+                    joy.genevaState++;                                    // Turn Geneva Drive to the right
+                    if (joy.genevaState > 2) {                           // Geneva state cannot go above 2 (such state does not exist)
+                        joy.genevaState = 2;                               // Set the Geneva state back to 2
+                    }
+                }
+                joy.press(btn);                                         // Set button state to pressed
+            }else                                                // If Dpad is not pressed
+                joy.release(btn);                                       // Set button state to released
+            /* ============================================== */
+
+        }
+        /* ==== End DPad control ==== */
 
 
 
-        /* ==== Turn clockwise ==== */
+        /* ==== Turn robot clockwise ==== */
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))){
             command.y_vel = 0.8;
             command.w = -2;
@@ -216,7 +257,7 @@ namespace rtt {
         }
         /* ======================== */
 
-        /* ==== Turn counterclockwise ==== */
+        /* ==== Turn robot counterclockwise ==== */
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::B))){
             command.y_vel = -0.8;
             command.w = 2;
@@ -257,6 +298,7 @@ namespace rtt {
 
 
         /* ==== Set Kicker ==== */
+        Xbox360Controller btn;
         btn = Xbox360Controller::RightBumper;
         if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If RightBumper is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
@@ -269,6 +311,9 @@ namespace rtt {
 
         // ==== Set dribbler
         command.dribbler = getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) == 1;
+
+        // ==== Set geneva drive state
+        command.geneva_state = joy.genevaState;
 
 
         // ==== Set kicker velocity
