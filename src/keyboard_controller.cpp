@@ -432,7 +432,7 @@ Controls:10
     auto robotIDAllKeys = robotIDNumKeys;
     robotIDAllKeys.insert(robotIDAllKeys.end(), robotIDLetterKeys.begin(), robotIDLetterKeys.end());
 
-    int currentID = 5;
+    int currentID = 0;
 
     if (auto idOpt = getCmdOption(args, "-id")) {
         try {
