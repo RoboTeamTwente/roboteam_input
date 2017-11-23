@@ -21,6 +21,7 @@ namespace bp = ::boost::process;
 #include "roboteam_utils/world_analysis.h"
 
 #include "joystick_enums.h"
+#include "joystick_profiles.h"
 
 namespace rtt {
 
@@ -34,7 +35,7 @@ namespace rtt {
             { Xbox360Controller::LeftTrigger  , 2  },
             { Xbox360Controller::RightStickX  , 3  },  // Turn left / right
             { Xbox360Controller::RightStickY  , 4  },
-            { Xbox360Controller::RightTrigger , 5  },  // Turbo
+            { Xbox360Controller::RightTrigger , 5  },
             { Xbox360Controller::DpadX        , 6  },  // Left : Turn Geneva Drive left / Right : Turn Geneva Drive right
             { Xbox360Controller::DpadY        , 7  },  // Up : ID +=1 / Down : ID -= 1
 
@@ -46,11 +47,13 @@ namespace rtt {
             { Xbox360Controller::LeftBumper   , 4  },  // Dribbler
             { Xbox360Controller::RightBumper  , 5  },  // Kicker
             { Xbox360Controller::Back         , 6  },
-            { Xbox360Controller::Start        , 7  },
+            { Xbox360Controller::Start        , 7  },  // +Y : Switch profile
             { Xbox360Controller::Guide        , 8  },
             { Xbox360Controller::LeftStick    , 9  },
             { Xbox360Controller::RightStick   , 10 }
     };
+
+
 
     struct JoyEntry {
         b::optional<bp::child> process;             // Holds the joy_node process
@@ -61,13 +64,18 @@ namespace rtt {
         int robotID;                                // 1 - 16
         const int MY_ID;                            // Holds the unique id
 
+        joystick_profile profile;
+        int profileCounter;
+
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
         int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
 
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 
-        JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {}
+        JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {
+            this->profile = profile_default;
+        }
 
         void init(){
             std::cout << "[JoyEntry::init] " << input << " connected to robot " << robotID << std::endl;
@@ -148,6 +156,11 @@ namespace rtt {
             speedState.y = 0;
         }
 
+        void nextJoystickProfile(){
+            this->profileCounter = (this->profileCounter + 1) % NUM_JOYSTICK_PROFILES;
+            this->profile = joystick_profiles[this->profileCounter];
+        }
+
         void press(Xbox360Controller btn){
             btnState[btn] = true;
         }
@@ -163,6 +176,7 @@ namespace rtt {
         }
     };
 
+
     int JoyEntry::intSupplier = 0;
     std::array<JoyEntry, NUM_CONTROLLERS> joys;
 
@@ -173,15 +187,6 @@ namespace rtt {
         return T(0);
     }
 
-    const double SMOOTH_FACTOR = 0.3;
-    const double SPEED_MULTIPLIER = 1;
-    const double SPEED_MIN = 0.5;
-    const double SPEED_MAX = 2;
-
-    const double ROTATION_MULTIPLIER = 5;
-    const double ROTATION_MIN = 1.5;
-
-
     roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy const &msg) {
 //        std::cout << "[makeRobotCommand] MY_ID: " << joy.MY_ID << " input: " << joy.input << " robotID: " << joy.robotID << std::endl;
 
@@ -189,13 +194,23 @@ namespace rtt {
 
         command.id = joy.robotID;
 
-
-
         /* ==== DPad control is off by default. While Y is pressed it is enabled ==== */
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::Y))) {
 
-            /* ==== Check if ID has to be switched lower ==== */
             Xbox360Controller btn;
+
+            /* === Check if profile has to be modified === */
+            btn = Xbox360Controller::Start;
+            if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){  // if Start is pressed
+                if(!joy.isPressed(btn)){                    // Check if it was already pressed before
+                    joy.nextJoystickProfile();                  // If not, switch to next profile
+                }
+                joy.press(btn);                             // Set button state to pressed
+            }else{
+                joy.release(btn);                           // Set button state to released
+            }
+
+            /* ==== Check if ID has to be switched lower ==== */
             btn = Xbox360Controller::DpadY;
             if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadUp is pressed
                 bool pressed = joy.isPressed(btn);            // Store whether the button was pressed before
@@ -207,22 +222,20 @@ namespace rtt {
                     return command;
                 }
             }else
-            if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){    // If DpadDown is pressed
-                bool pressed = joy.isPressed(btn);            // Store whether the button was pressed before
-                joy.press(btn);                               // Set button state to pressed
-                if(!pressed) {                                // Check if it was already pressed before
-                    joy.setRobotID((joy.robotID + 15) % 16);                // If not, decrement id
-                    joy.genevaState = 0;                                   // Reset Geneva Drive
-                    command.geneva_state = joy.genevaState;                // Reset Geneva Drive
+            if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){   // If DpadDown is pressed
+                bool pressed = joy.isPressed(btn);                  // Store whether the button was pressed before
+                joy.press(btn);                                     // Set button state to pressed
+                if(!pressed) {                                      // Check if it was already pressed before
+                    joy.setRobotID((joy.robotID + 15) % 16);            // If not, decrement id
+                    joy.genevaState = 0;                                // Reset Geneva Drive
+                    command.geneva_state = joy.genevaState;             // Reset Geneva Drive
                     return command;
                 }
-            }else                                                   // If Dpad is not pressed
-                joy.release(btn);                                       // Set button state to released
-
+            }else                                               // If Dpad is not pressed
+                joy.release(btn);                                   // Set button state to released
             /* ============================================== */
 
             /* ==== Rotate kicker (Geneva Drive)==== */
-
             btn = Xbox360Controller::DpadX;
             if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
                 if(!joy.isPressed(btn)) {                               // Check if it was already pressed before
@@ -266,35 +279,23 @@ namespace rtt {
         /* =============================== */
 
 
-        double speedmult = SPEED_MULTIPLIER;
-
-        /* ==== Turbo ==== */
-            /* For some reason, if the RightTrigger is released and hasn't been pressed yet, this reads 0 instead of 1 */
-            /* When the trigger is pressed halfway, the value -0 is sent, distinguishing is from 0 */
-//        double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
-//        if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal))
-//            RightTriggerVal = 1;
-//        speedmult = SPEED_MULTIPLIER + (1 - RightTriggerVal);
-
 
         /* ==== Smoothing ==== */
         /* Smooth x */
-        double diffX = -joy.speedState.x + speedmult * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
-        joy.speedState.x += SMOOTH_FACTOR * diffX;
+        double diffX = -joy.speedState.x + joy.profile.SPEED_MULTIPLIER * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
+        joy.speedState.x += joy.profile.SMOOTH_FACTOR * diffX;
         command.x_vel = joy.speedState.x;
+
         /* Smooth y */
-        double diffY = -joy.speedState.y + speedmult * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
-        joy.speedState.y += SMOOTH_FACTOR * diffY;
+        double diffY = -joy.speedState.y + joy.profile.SPEED_MULTIPLIER * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
+        joy.speedState.y += joy.profile.SMOOTH_FACTOR * diffY;
         command.y_vel = joy.speedState.y;
         /* =================== */
 
-        /* Non-smoothing */
-        //command.y_vel = 3 * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY);
-        //command.x_vel = 3 * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX);
-
         // ==== Rotation
-        double rot_mult = ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
+        double rot_mult = joy.profile.ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
         command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rot_mult;
+
 
 
         /* ==== Set Kicker ==== */
@@ -315,7 +316,6 @@ namespace rtt {
         // ==== Set geneva drive state
         command.geneva_state = joy.genevaState;
 
-
         // ==== Set kicker velocity
         if (command.kicker) {
             command.kicker_vel = 3;
@@ -323,14 +323,24 @@ namespace rtt {
         }
 
         /* ==== Check speed boundaries ==== */
-        /* Check x */
-        if      (fabs(command.y_vel) < SPEED_MIN) { command.y_vel = 0.0; }
-        else if (fabs(command.y_vel) > SPEED_MAX) { command.y_vel = SPEED_MAX; }
-        /* Check y */
-        if      (fabs(command.x_vel) < SPEED_MIN) { command.x_vel = 0.0; }
-        else if (fabs(command.x_vel) > SPEED_MAX) { command.x_vel = SPEED_MAX; }
+        /* === Check x === */
+          // If speed is below -SPEED_MAX
+             if ( command.y_vel         < -joy.profile.SPEED_MAX                                 ) { command.y_vel = -joy.profile.SPEED_MAX; }
+          // If speed is inbetween -SPEED_MAX and SPEED_MAX
+        else if (-joy.profile.SPEED_MIN <  command.y_vel && command.y_vel < joy.profile.SPEED_MIN) { command.y_vel =  0.0; }
+          // If speed is above SPEED_MAX
+        else if ( joy.profile.SPEED_MAX <  command.y_vel                                         ) { command.y_vel =  joy.profile.SPEED_MAX; }
+
+        /* === Check y === */
+          // If speed is below -SPEED_MAX
+             if ( command.x_vel         < -joy.profile.SPEED_MAX                                 ) { command.x_vel = -joy.profile.SPEED_MAX; }
+          // If speed is inbetween -SPEED_MAX and SPEED_MAX
+        else if (-joy.profile.SPEED_MIN <  command.x_vel && command.x_vel < joy.profile.SPEED_MIN) { command.x_vel =  0.0; }
+          // If speed is above SPEED_MAX
+        else if ( joy.profile.SPEED_MAX <  command.x_vel                                         ) { command.x_vel =  joy.profile.SPEED_MAX; }
+
         /* Check rotation */
-        if      (fabs(command.w) < ROTATION_MIN) { command.w = 0.0; }
+        if      (fabs(command.w) < joy.profile.ROTATION_MIN) { command.w = 0.0; }
         /* ================================ */
 
         return command;

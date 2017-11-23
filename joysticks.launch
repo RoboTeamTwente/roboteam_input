@@ -6,6 +6,8 @@
 	<arg name="robot_output_target" default="serial" />
 	<arg name="robot_type" default="proto" />
 
+	<param name="robot_output_target" type="string" value="$(arg robot_output_target)" />
+
 	<param name="robot0/robotType" type="string" value="$(arg robot_type)" />
 	<param name="robot1/robotType" type="string" value="$(arg robot_type)" />
 	<param name="robot2/robotType" type="string" value="$(arg robot_type)" />
@@ -16,6 +18,8 @@
 	<param name="robot7/robotType" type="string" value="$(arg robot_type)" />
 	<param name="robot8/robotType" type="string" value="$(arg robot_type)" />
 	<param name="robot9/robotType" type="string" value="$(arg robot_type)" />
+
+
 
     <node pkg="roboteam_input" type="joystick_input" name="joystick_input" output="screen" />
     <node pkg="roboteam_robothub" type="roboteam_robothub" name="robothub" output="screen" />

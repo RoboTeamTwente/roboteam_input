@@ -30,4 +30,4 @@ enum class Xbox360Controller {
     RightStick
 };
 
-#endif ROBOTEAM_INPUT_JOYSTICK_ENUMS_H
+#endif //ROBOTEAM_INPUT_JOYSTICK_ENUMS_H
