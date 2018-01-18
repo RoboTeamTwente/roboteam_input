@@ -61,6 +61,10 @@ namespace rtt {
         int robotID;                                // 1 - 16
         const int MY_ID;                            // Holds the unique id
 
+        std::time_t savedTime;                      // added by anouk
+        std::time_t timer = 0;                      // added by anouk
+        bool msgReceived = true;                   // added by anouk
+
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
 
@@ -131,12 +135,32 @@ namespace rtt {
             subscriber = n.subscribe(input, 1, &JoyEntry::receiveJoyMsg, this);
         }
 
+        void saveTime(){
+            savedTime = std::time(0);
+        }
+
+        void setTimer(){
+            std::time_t t = std::time(0);
+            timer = t - savedTime;
+        }
+
+        int getTimer(){
+           return timer;
+        }
+
+        void resetTimer(){
+            savedTime = std::time(0);
+            timer = 0;
+        }
+
+
         void receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg) {
 //             std::cout << "[JoyEntry::receiveJoyMsg " << this->input << " ] Message received : " << msg << std::endl;
 
             // Only store the newest messages
             this->msg = *msg;
         }
+
 
         void setRobotID(int id){
             std::cout << "[JoyEntry::setRobotID] " << input << " connected to robot " << id << std::endl;
@@ -196,11 +220,13 @@ namespace rtt {
         if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
                 joy.setRobotID((joy.robotID + 15) % 16);                // If not, decrement id
+                joy.resetTimer();
             joy.press(btn);                                         // Set button state to pressed
         }else
         if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){    // If DpadRight is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
-                joy.setRobotID((joy.robotID + 1) % 16);                 // If not, increment id
+                joy.setRobotID((joy.robotID + 1) % 16);             // If not, increment id
+                joy.resetTimer();
             joy.press(btn);                                         // Set button state to pressed
         }else                                                   // If Dpad is not pressed
             joy.release(btn);                                       // Set button state to released
@@ -212,6 +238,7 @@ namespace rtt {
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))){
             command.y_vel = 0.8;
             command.w = -2;
+            joy.resetTimer();
             return command;
         }
         /* ======================== */
@@ -220,6 +247,7 @@ namespace rtt {
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::B))){
             command.y_vel = -0.8;
             command.w = 2;
+            joy.resetTimer();
             return command;
         }
         /* =============================== */
@@ -288,12 +316,14 @@ namespace rtt {
         if      (fabs(command.w) < ROTATION_MIN) { command.w = 0.0; }
         /* ================================ */
 
+
         return command;
     }
 } // rtt
 
 int main(int argc, char **argv) {
     using namespace rtt;
+
 
     ros::init(argc, argv, "roboteam_input");
     ros::NodeHandle n;
@@ -305,23 +335,33 @@ int main(int argc, char **argv) {
 
     for (auto &joy : joys) {
         joy.init();
+        joy.saveTime();
     }
 
     while (ros::ok()) {
+        for (auto &joy : joys) {
+        while (joy.getTimer() < 30) {
+            joy.setTimer();
 
-        std::time_t t = std::time(0);
-//        std::cout << "\n=======================================" << t << "============================================\n";
+            std::cout << "\n=======================================" << joy.getTimer() << "============================================\n";
+
+            for (auto &joy : joys) {
+
+                if (joy.msg) {
+//                    std::cout << "[joys] !!msg received!!" << std::endl;
+                    auto command = makeRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                }
+            }
+
+            fps.sleep();
+
+            ros::spinOnce();
+        }}
 
         for (auto &joy : joys) {
-            if (joy.msg) {
-                auto command = makeRobotCommand(joy, *joy.msg);
-                pub.publish(command);
-            }
+            joy.resetTimer();
         }
-
-        fps.sleep();
-
-        ros::spinOnce();
     }
 
     return 0;
