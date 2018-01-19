@@ -43,7 +43,7 @@ namespace rtt {
             { Xbox360Controller::A, 0 },
             { Xbox360Controller::B, 1 },    // Turn counterclockwise
             { Xbox360Controller::X, 2 },    // Turn clockwise
-            { Xbox360Controller::Y, 3 },    // Enables ID switching as long as it is pressed
+            { Xbox360Controller::Y, 3 },    // Enables ID switching and profile switching as long as it is pressed
             { Xbox360Controller::LeftBumper   , 4  },  // Dribbler
             { Xbox360Controller::RightBumper  , 5  },  // Kicker
             { Xbox360Controller::Back         , 6  },
