@@ -63,7 +63,8 @@ namespace rtt {
 
         std::time_t savedTime;                      // added by anouk
         std::time_t timer = 0;                      // added by anouk
-        bool msgReceived = true;                   // added by anouk
+
+        bool isRunningAuto = false;
 
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
@@ -156,7 +157,7 @@ namespace rtt {
 
         void receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg) {
 //             std::cout << "[JoyEntry::receiveJoyMsg " << this->input << " ] Message received : " << msg << std::endl;
-
+            this->resetTimer();
             // Only store the newest messages
             this->msg = *msg;
         }
@@ -220,13 +221,11 @@ namespace rtt {
         if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
                 joy.setRobotID((joy.robotID + 15) % 16);                // If not, decrement id
-                joy.resetTimer();
             joy.press(btn);                                         // Set button state to pressed
         }else
         if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){    // If DpadRight is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
                 joy.setRobotID((joy.robotID + 1) % 16);             // If not, increment id
-                joy.resetTimer();
             joy.press(btn);                                         // Set button state to pressed
         }else                                                   // If Dpad is not pressed
             joy.release(btn);                                       // Set button state to released
@@ -238,7 +237,6 @@ namespace rtt {
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))){
             command.y_vel = 0.8;
             command.w = -2;
-            joy.resetTimer();
             return command;
         }
         /* ======================== */
@@ -247,7 +245,6 @@ namespace rtt {
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::B))){
             command.y_vel = -0.8;
             command.w = 2;
-            joy.resetTimer();
             return command;
         }
         /* =============================== */
@@ -339,28 +336,40 @@ int main(int argc, char **argv) {
     }
 
     while (ros::ok()) {
+
         for (auto &joy : joys) {
-        while (joy.getTimer() < 30) {
-            joy.setTimer();
+//            std::cout << "blabla" << std::endl;
+            while (joy.getTimer() < 15) {
 
-            std::cout << "\n=======================================" << joy.getTimer() << "============================================\n";
+                joy.setTimer();
+                std::cout << "\n=======================================" << joy.getTimer() << "============================================\n";
 
-            for (auto &joy : joys) {
+                    if (joy.msg) {
+                        auto command = makeRobotCommand(joy, *joy.msg);
+                        pub.publish(command);
+                    }
 
-                if (joy.msg) {
-//                    std::cout << "[joys] !!msg received!!" << std::endl;
-                    auto command = makeRobotCommand(joy, *joy.msg);
-                    pub.publish(command);
-                }
+                fps.sleep();
+
+                ros::spinOnce();
             }
 
-            fps.sleep();
+            if(!joy.isRunningAuto) {
 
+                boost::process p = bp::child(
+                        bp::search_path("roslaunch"),
+                        "roboteam_tactics",
+                        "SafeStrategyNode.launch",
+                        "cmdline:=rtt_emiel/Emiel_Test_Strat_1",
+                        bp::std_out > bp::null
+
+                );
+                joy.isRunningAuto=true;
+            }
+
+            std::cout << "\n================================Start Autonomous Play=====================================\n";
             ros::spinOnce();
-        }}
-
-        for (auto &joy : joys) {
-            joy.resetTimer();
+//            joy.resetTimer();
         }
     }
 
