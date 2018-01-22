@@ -14,11 +14,14 @@ namespace bp = ::boost::process;
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
 #include "roboteam_msgs/RobotCommand.h"
+#include "roboteam_msgs/RoleDirective.h"
 #include "roboteam_msgs/World.h"
 #include "roboteam_msgs/GeometryFieldSize.h"
 #include "roboteam_msgs/GeometryData.h"
 #include "roboteam_utils/Vector2.h"
 #include "roboteam_utils/world_analysis.h"
+
+#include "roboteam_tactics/utils/ScopedBB.h"
 
 #include "joystick_enums.h"
 
@@ -328,49 +331,63 @@ int main(int argc, char **argv) {
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    ros::Rate fps(60);
+
+    ros::Rate fps(1);
 
     for (auto &joy : joys) {
         joy.init();
         joy.saveTime();
     }
 
+
+    /* ==== Launch a strategy, because ==== */
+    boost::filesystem::path pathRosLaunch = bp::search_path("roslaunch");
+
+    std::vector<std::string> args;
+    args.push_back("roboteam_tactics");
+    args.push_back("SafeStrategyNode.launch");
+    args.push_back("cmdline:=rtt_emiel/Emiel_Test_Strat_1");
+
+    bp::child c(pathRosLaunch, args);
+    /* ==== Launch a strategy, because ==== */
+
     while (ros::ok()) {
 
         for (auto &joy : joys) {
-//            std::cout << "blabla" << std::endl;
+
+            /* TODO : makeRobotCommand only gets called for first joystick here */
             while (joy.getTimer() < 15) {
 
                 joy.setTimer();
-                std::cout << "\n=======================================" << joy.getTimer() << "============================================\n";
+                ROS_INFO_STREAM_NAMED("input", "========| " << joy.getTimer() << " |========");
 
-                    if (joy.msg) {
-                        auto command = makeRobotCommand(joy, *joy.msg);
-                        pub.publish(command);
-                    }
+                if (joy.msg) {
+                    auto command = makeRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                }
 
-                fps.sleep();
-
-                ros::spinOnce();
+                fps.sleep();        // Why is this in the joy-loop, and not in the ros::ok() loop?
+                ros::spinOnce();    // Why is this in the joy-loop, and not in the ros::ok() loop?
             }
 
             if(!joy.isRunningAuto) {
 
-                boost::process p = bp::child(
-                        bp::search_path("roslaunch"),
-                        "roboteam_tactics",
-                        "SafeStrategyNode.launch",
-                        "cmdline:=rtt_emiel/Emiel_Test_Strat_1",
-                        bp::std_out > bp::null
-
-                );
+//                boost::process p = bp::child(
+//                        bp::search_path("roslaunch"),
+//                        "roboteam_tactics",
+//                        "SafeStrategyNode.launch",
+//                        "cmdline:=rtt_emiel/Emiel_Test_Strat_1",
+//                        bp::std_out > bp::null
+//
+//                );
                 joy.isRunningAuto=true;
             }
 
-            std::cout << "\n================================Start Autonomous Play=====================================\n";
+            ROS_INFO_STREAM_NAMED("input", "========| Autonomous |========");
             ros::spinOnce();
-//            joy.resetTimer();
+
         }
+        fps.sleep();
     }
 
     return 0;
