@@ -21,13 +21,19 @@ namespace bp = ::boost::process;
 #include "roboteam_utils/Vector2.h"
 #include "roboteam_utils/world_analysis.h"
 
-#include "roboteam_tactics/utils/ScopedBB.h"
-
 #include "joystick_enums.h"
+
+#include <chrono>
+#include <thread>
+
+#include <vector>
+#include <string>
+#include <numeric>
+#include <iostream>
 
 namespace rtt {
 
-    const int NUM_CONTROLLERS = 2;
+    const int NUM_CONTROLLERS = 1;
 
     /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node*/
     const std::map<Xbox360Controller, int> xbox360mapping = {
@@ -68,6 +74,7 @@ namespace rtt {
         std::time_t timer = 0;                      // added by anouk
 
         bool isRunningAuto = false;
+        bp::child processAuto;                      // Holds the joy_node auto process
 
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
@@ -331,7 +338,6 @@ int main(int argc, char **argv) {
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-
     ros::Rate fps(1);
 
     for (auto &joy : joys) {
@@ -341,51 +347,88 @@ int main(int argc, char **argv) {
 
 
     /* ==== Launch a strategy, because ==== */
-    boost::filesystem::path pathRosLaunch = bp::search_path("roslaunch");
+//    boost::filesystem::path pathRosrun = bp::search_path("rosrun");
+//    std::vector<std::string> args;
+//    args.push_back("roboteam_tactics");
+//    args.push_back("TestX");
+//    args.push_back("rtt_bob/DemoAttacker");
+//    args.push_back("string:GetBall__aimAt=ourgoal");
+//    args.push_back("int:ROBOT_ID=0");
+//    args.push_back("double:Kick__kickVel=8.0");
 
-    std::vector<std::string> args;
-    args.push_back("roboteam_tactics");
-    args.push_back("SafeStrategyNode.launch");
-    args.push_back("cmdline:=rtt_emiel/Emiel_Test_Strat_1");
 
-    bp::child c(pathRosLaunch, args);
+
+//    ROS_INFO_NAMED("input", "Starting wait..");
+//    c.wait();
+//    ROS_INFO_NAMED("input", "Waiting done..");
+
+
+
+//    bp::child c(pathRosrun, args);
+//    ROS_INFO_NAMED("input", "Starting wait..");
+//    std::this_thread::sleep_until(std::chrono::system_clock::now() + std::chrono::seconds(10));
+//    ROS_INFO_NAMED("input", "Waiting done..");
+//    c.terminate();
+
+
+
+//    boost::filesystem::path pathRosLaunch = bp::search_path("roslaunch");
+//
+//    std::vector<std::string> args;
+//    args.push_back("roboteam_tactics");
+//    args.push_back("SafeStrategyNode.launch");
+//    args.push_back("cmdline:=rtt_emiel/Emiel_Test_Strat_1");
+//
+//    bp::child c(pathRosLaunch, args);
     /* ==== Launch a strategy, because ==== */
 
     while (ros::ok()) {
+        ROS_INFO_STREAM_THROTTLE_NAMED(1, "input", "==========| Tick |==========");
+
+        ros::spinOnce();
 
         for (auto &joy : joys) {
 
-            /* TODO : makeRobotCommand only gets called for first joystick here */
-            while (joy.getTimer() < 15) {
+            joy.setTimer();
 
-                joy.setTimer();
-                ROS_INFO_STREAM_NAMED("input", "========| " << joy.getTimer() << " |========");
+            if(joy.getTimer() < 3){
+
+                // If process is running and should be stopped..
+                if(joy.isRunningAuto){
+                    ROS_INFO_STREAM_NAMED("input", "Joy " << joy.robotID << " terminating proces..");
+                    joy.processAuto.terminate();
+                    joy.isRunningAuto = false;
+                }
 
                 if (joy.msg) {
                     auto command = makeRobotCommand(joy, *joy.msg);
                     pub.publish(command);
                 }
 
-                fps.sleep();        // Why is this in the joy-loop, and not in the ros::ok() loop?
-                ros::spinOnce();    // Why is this in the joy-loop, and not in the ros::ok() loop?
+            }else{
+                if(!joy.isRunningAuto){
+                    ROS_INFO_STREAM_NAMED("input", "Joy " << joy.robotID << " starting proces..");
+
+                    boost::filesystem::path pathRosrun = bp::search_path("rosrun");
+
+                    std::vector<std::string> args;
+                    args.push_back("roboteam_tactics");
+                    args.push_back("TestX");
+                    args.push_back("rtt_bob/DemoAttacker");
+                    args.push_back("string:GetBall__aimAt=ourgoal");
+                    args.push_back("int:ROBOT_ID=" + std::to_string(joy.robotID));
+                    args.push_back("double:Kick__kickVel=8.0");
+
+                    std::string command = "";
+                    for (auto const& s : args) { command += s + " "; }
+
+                    ROS_INFO_STREAM_NAMED("input", command);
+
+                    joy.processAuto = bp::child(pathRosrun, args);
+
+                    joy.isRunningAuto=true;
+                }
             }
-
-            if(!joy.isRunningAuto) {
-
-//                boost::process p = bp::child(
-//                        bp::search_path("roslaunch"),
-//                        "roboteam_tactics",
-//                        "SafeStrategyNode.launch",
-//                        "cmdline:=rtt_emiel/Emiel_Test_Strat_1",
-//                        bp::std_out > bp::null
-//
-//                );
-                joy.isRunningAuto=true;
-            }
-
-            ROS_INFO_STREAM_NAMED("input", "========| Autonomous |========");
-            ros::spinOnce();
-
         }
         fps.sleep();
     }
