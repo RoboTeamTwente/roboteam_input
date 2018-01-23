@@ -22,13 +22,14 @@ namespace bp = ::boost::process;
 #include "roboteam_utils/world_analysis.h"
 
 #include "joystick_enums.h"
+#include "joystick_profiles.h"
 
 namespace rtt {
 
     const int NUM_CONTROLLERS = 1;
     const int TIMEOUT_SECONDS = 5;
 
-    /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node*/
+    /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node */
     const std::map<Xbox360Controller, int> xbox360mapping = {
             // Axes
             { Xbox360Controller::LeftStickX   , 0  },  // Drive forward / backward
@@ -36,19 +37,19 @@ namespace rtt {
             { Xbox360Controller::LeftTrigger  , 2  },
             { Xbox360Controller::RightStickX  , 3  },  // Turn left / right
             { Xbox360Controller::RightStickY  , 4  },
-            { Xbox360Controller::RightTrigger , 5  },  // Turbo
-            { Xbox360Controller::DpadX        , 6  },  // Left : ID -=1 / Right : ID += 1
-            { Xbox360Controller::DpadY        , 7  },
+            { Xbox360Controller::RightTrigger , 5  },
+            { Xbox360Controller::DpadX        , 6  },  // Left : Turn Geneva Drive left / Right : Turn Geneva Drive right
+            { Xbox360Controller::DpadY        , 7  },  // Up : ID +=1 / Down : ID -= 1
 
             // Buttons
             { Xbox360Controller::A, 0 },
-            { Xbox360Controller::B, 1 },
+            { Xbox360Controller::B, 1 },    // Turn counterclockwise
             { Xbox360Controller::X, 2 },    // Turn clockwise
-            { Xbox360Controller::Y, 3 },    // Turn counterclockwise
+            { Xbox360Controller::Y, 3 },    // Enables ID switching and profile switching as long as it is pressed
             { Xbox360Controller::LeftBumper   , 4  },  // Dribbler
             { Xbox360Controller::RightBumper  , 5  },  // Kicker
             { Xbox360Controller::Back         , 6  },
-            { Xbox360Controller::Start        , 7  },
+            { Xbox360Controller::Start        , 7  },  // +Y : Switch profile
             { Xbox360Controller::Guide        , 8  },
             { Xbox360Controller::LeftStick    , 9  },
             { Xbox360Controller::RightStick   , 10 }
@@ -63,26 +64,30 @@ namespace rtt {
         int robotID;                                // 1 - 16
         const int MY_ID;                            // Holds the unique id
 
+        joystick_profile profile;
+        int profileCounter;
+
         // ==== Variables related to automatically running a RoleNode
-        std::time_t timeLastReceived = std::time(0);       // added by anouk
-        bool isRunningAuto = false;                 // added by anouk
+        std::time_t timeLastReceived = std::time(0);// added by anouk
         b::optional<bp::child> processAuto;         // Holds the joy_node auto process
 
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
+        int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
 
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 
-        JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {}
+        JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {
+            this->profile = profile_default;
+        }
 
         void init(){
-            std::cout << "[JoyEntry::init] " << input << " connected to robot " << robotID << std::endl;
+            ROS_INFO_STREAM(input << " connected to robot " << robotID);
             setToInput("js" + std::to_string(MY_ID));
         }
 
         void setToInput(std::string newInput) {
-
-            std::cout << "[JoyEntry::setToInput] now listening to " << newInput << std::endl;
+            ROS_INFO_STREAM(input << " now listening to " << newInput);
 
             if (newInput == input)
                 return;
@@ -92,27 +97,25 @@ namespace rtt {
             // Remove the most recently received message to prevent stale values.
             msg = b::none;
 
-            // Kill your darlings if needed
-            if (process) {
+            // Kill the current process
+            if(process) {
+                process->terminate();
                 process = b::none;
-                //std::cout << "[JoyEntry::setToInput] process killed" << std::endl;
             }
 
+            // Kill the current subscriber
             if (subscriber) {
                 subscriber->shutdown();
                 subscriber = b::none;
-                //std::cout << "[JoyEntry::setToInput] subscriber killed" << std::endl;
             }
 
-            if (input == "") {
+            if (input == "")
                 return;
-            }
 
             // If this ever starts throwing weird compile time errors about
             // exe_cmd_init being deleted, just go to posix/basic_cmd.hpp
             // and mark the exe_cmd_init(const ...) function as default
             // See: https://github.com/klemens-morgenstern/boost-process/issues/21
-            //std::cout << "[JoyEntry::setToInput] Starting process" << std::endl;
 
             process = bp::child(
                     bp::search_path("roslaunch"),
@@ -137,33 +140,31 @@ namespace rtt {
         void resetTimer(){
             timeLastReceived = std::time(0);
         }
-        void updateAutoProcess(){
-            // If timeout not yet reached
-            if(getTimer() <3 - 3 + TIMEOUT_SECONDS) { // #Liefde #LoveLife #RoboTeamLife
-                // If process is running, kill it
-                if(processAuto && processAuto->running()){
-                    ROS_INFO_STREAM_NAMED("input", "Joy " << robotID << " terminating process..");
-                    processAuto->terminate();
-                    processAuto = b::none;      // This is required, just calling terminate doesn't cut it. Without this, processAuto->running() returns false when starting a new process
-                }
-            }else
-            // If timeout reached
-            {
-                // If no process is running, start it
-                if(!processAuto || !processAuto->running()){
-                    ROS_INFO_STREAM_NAMED("input", "Joy " << robotID << " starting process..");
 
-                    boost::filesystem::path pathRosrun = bp::search_path("rosrun");
-                    std::vector<std::string> args;
-                    args.push_back("roboteam_tactics");
-                    args.push_back("TestX");
-                    args.push_back("rtt_bob/DemoAttacker");
-                    args.push_back("string:GetBall__aimAt=ourgoal");
-                    args.push_back("int:ROBOT_ID=" + std::to_string(robotID));
-                    args.push_back("double:Kick__kickVel=8.0");
+        void stopAutoPlay(){
+            // If process is running, kill it
+            if(processAuto){
+                ROS_INFO_STREAM("Joy " << robotID << " terminating process..");
+                processAuto->terminate();
+                processAuto = b::none;      // This is required, just calling terminate doesn't cut it. Without this, processAuto->running() returns false when starting a new process
+            }
+        }
 
-                    processAuto = bp::child(pathRosrun, args);
-                }
+        void startAutoPlay(){
+            // If no process is running, start it
+            if(!processAuto || !processAuto->running()){
+                ROS_INFO_STREAM("Joy " << robotID << " starting process..");
+
+                boost::filesystem::path pathRosrun = bp::search_path("rosrun");
+                std::vector<std::string> args;
+                args.push_back("roboteam_tactics");
+                args.push_back("TestX");
+                args.push_back("rtt_bob/DemoAttacker");
+                args.push_back("string:GetBall__aimAt=ourgoal");
+                args.push_back("int:ROBOT_ID=" + std::to_string(robotID));
+                args.push_back("double:Kick__kickVel=8.0");
+
+                processAuto = bp::child(pathRosrun, args);
             }
         }
 
@@ -173,11 +174,17 @@ namespace rtt {
         }
 
         void setRobotID(int id){
-            ROS_INFO_STREAM_NAMED("input", input << " connected to robot " << id);
+            ROS_INFO_STREAM(input << " connected to robot " << id);
             robotID = id;
             // Reset robot velocity
             speedState.x = 0;
             speedState.y = 0;
+        }
+
+        void nextJoystickProfile(){
+            profileCounter = (profileCounter + 1) % NUM_JOYSTICK_PROFILES;
+            profile = joystick_profiles[profileCounter];
+            ROS_INFO_STREAM(input << " using profile " << profileCounter);
         }
 
         void press(Xbox360Controller btn){
@@ -205,15 +212,6 @@ namespace rtt {
         return T(0);
     }
 
-    const double SMOOTH_FACTOR = 0.3;
-    const double SPEED_MULTIPLIER = 1;
-    const double SPEED_MIN = 0.5;
-    const double SPEED_MAX = 2;
-
-    const double ROTATION_MULTIPLIER = 5;
-    const double ROTATION_MIN = 1.5;
-
-
     roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy const &msg) {
 //        std::cout << "[makeRobotCommand] MY_ID: " << joy.MY_ID << " input: " << joy.input << " robotID: " << joy.robotID << std::endl;
 
@@ -221,27 +219,75 @@ namespace rtt {
 
         command.id = joy.robotID;
 
+        /* ==== DPad control is off by default. While Y is pressed it is enabled ==== */
+        if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::Y))) {
+
+            Xbox360Controller btn;
+
+            /* === Check if profile has to be modified === */
+            btn = Xbox360Controller::Start;
+            if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){  // if Start is pressed
+                if(!joy.isPressed(btn)){                    // Check if it was already pressed before
+                    joy.nextJoystickProfile();                  // If not, switch to next profile
+                }
+                joy.press(btn);                             // Set button state to pressed
+            }else{
+                joy.release(btn);                           // Set button state to released
+            }
+
+            /* ==== Check if ID has to be switched lower ==== */
+            btn = Xbox360Controller::DpadY;
+            if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadUp is pressed
+                bool pressed = joy.isPressed(btn);            // Store whether the button was pressed before
+                joy.press(btn);                               // Set button state to pressed
+                if(!pressed) {                                // Check if it was already pressed before
+                    joy.setRobotID((joy.robotID + 1) % 16);                // If not, increment id
+                    joy.genevaState = 0;                                   // Reset Geneva Drive
+                    command.geneva_state = joy.genevaState;                // Reset Geneva Drive
+                    return command;
+                }
+            }else
+            if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){   // If DpadDown is pressed
+                bool pressed = joy.isPressed(btn);                  // Store whether the button was pressed before
+                joy.press(btn);                                     // Set button state to pressed
+                if(!pressed) {                                      // Check if it was already pressed before
+                    joy.setRobotID((joy.robotID + 15) % 16);            // If not, decrement id
+                    joy.genevaState = 0;                                // Reset Geneva Drive
+                    command.geneva_state = joy.genevaState;             // Reset Geneva Drive
+                    return command;
+                }
+            }else                                               // If Dpad is not pressed
+                joy.release(btn);                                   // Set button state to released
+            /* ============================================== */
+
+            /* ==== Rotate kicker (Geneva Drive)==== */
+            btn = Xbox360Controller::DpadX;
+            if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
+                if(!joy.isPressed(btn)) {                               // Check if it was already pressed before
+                    joy.genevaState--;                                    // Turn Geneva Drive to the left
+                    if (joy.genevaState < -2) {                           // Geneva state cannot go below -2 (such state does not exist)
+                        joy.genevaState = -2;                               // Set the Geneva state back to -2
+                    }
+                }
+                joy.press(btn);                                         // Set button state to pressed
+            } else if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){ // If DpadRight is pressed
+                if(!joy.isPressed(btn)) {                               // Check if it was already pressed before
+                    joy.genevaState++;                                    // Turn Geneva Drive to the right
+                    if (joy.genevaState > 2) {                           // Geneva state cannot go above 2 (such state does not exist)
+                        joy.genevaState = 2;                               // Set the Geneva state back to 2
+                    }
+                }
+                joy.press(btn);                                         // Set button state to pressed
+            }else                                                // If Dpad is not pressed
+                joy.release(btn);                                       // Set button state to released
+            /* ============================================== */
+
+        }
+        /* ==== End DPad control ==== */
 
 
-        /* ==== Check if ID has to be switched lower ==== */
-        Xbox360Controller btn;
-        btn = Xbox360Controller::DpadX;
-        if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
-            if(!joy.isPressed(btn))                                 // Check if it was already pressed before
-                joy.setRobotID((joy.robotID + 15) % 16);                // If not, decrement id
-            joy.press(btn);                                         // Set button state to pressed
-        }else
-        if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){    // If DpadRight is pressed
-            if(!joy.isPressed(btn))                                 // Check if it was already pressed before
-                joy.setRobotID((joy.robotID + 1) % 16);             // If not, increment id
-            joy.press(btn);                                         // Set button state to pressed
-        }else                                                   // If Dpad is not pressed
-            joy.release(btn);                                       // Set button state to released
-        /* ============================================== */
 
-
-
-        /* ==== Turn clockwise ==== */
+        /* ==== Turn robot clockwise ==== */
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))){
             command.y_vel = 0.8;
             command.w = -2;
@@ -249,7 +295,7 @@ namespace rtt {
         }
         /* ======================== */
 
-        /* ==== Turn counterclockwise ==== */
+        /* ==== Turn robot counterclockwise ==== */
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::B))){
             command.y_vel = -0.8;
             command.w = 2;
@@ -258,38 +304,27 @@ namespace rtt {
         /* =============================== */
 
 
-        double speedmult = SPEED_MULTIPLIER;
-
-        /* ==== Turbo ==== */
-            /* For some reason, if the RightTrigger is released and hasn't been pressed yet, this reads 0 instead of 1 */
-            /* When the trigger is pressed halfway, the value -0 is sent, distinguishing is from 0 */
-//        double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
-//        if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal))
-//            RightTriggerVal = 1;
-//        speedmult = SPEED_MULTIPLIER + (1 - RightTriggerVal);
-
 
         /* ==== Smoothing ==== */
         /* Smooth x */
-        double diffX = -joy.speedState.x + speedmult * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
-        joy.speedState.x += SMOOTH_FACTOR * diffX;
+        double diffX = -joy.speedState.x + joy.profile.SPEED_MULTIPLIER * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
+        joy.speedState.x += joy.profile.SMOOTH_FACTOR * diffX;
         command.x_vel = joy.speedState.x;
+
         /* Smooth y */
-        double diffY = -joy.speedState.y + speedmult * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
-        joy.speedState.y += SMOOTH_FACTOR * diffY;
+        double diffY = -joy.speedState.y + joy.profile.SPEED_MULTIPLIER * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
+        joy.speedState.y += joy.profile.SMOOTH_FACTOR * diffY;
         command.y_vel = joy.speedState.y;
         /* =================== */
 
-        /* Non-smoothing */
-        //command.y_vel = 3 * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY);
-        //command.x_vel = 3 * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX);
-
         // ==== Rotation
-        double rot_mult = ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
+        double rot_mult = joy.profile.ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
         command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rot_mult;
 
 
+
         /* ==== Set Kicker ==== */
+        Xbox360Controller btn;
         btn = Xbox360Controller::RightBumper;
         if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If RightBumper is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
@@ -303,24 +338,34 @@ namespace rtt {
         // ==== Set dribbler
         command.dribbler = getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) == 1;
 
+        // ==== Set geneva drive state
+        command.geneva_state = joy.genevaState;
 
         // ==== Set kicker velocity
         if (command.kicker) {
             command.kicker_vel = 3;
-            std::cout << "[makeRobotCommand] Kicker command for robot " << joy.robotID << std::endl;
         }
 
         /* ==== Check speed boundaries ==== */
-        /* Check x */
-        if      (fabs(command.y_vel) < SPEED_MIN) { command.y_vel = 0.0; }
-        else if (fabs(command.y_vel) > SPEED_MAX) { command.y_vel = SPEED_MAX; }
-        /* Check y */
-        if      (fabs(command.x_vel) < SPEED_MIN) { command.x_vel = 0.0; }
-        else if (fabs(command.x_vel) > SPEED_MAX) { command.x_vel = SPEED_MAX; }
-        /* Check rotation */
-        if      (fabs(command.w) < ROTATION_MIN) { command.w = 0.0; }
-        /* ================================ */
+        /* === Check x === */
+        // If speed is below -SPEED_MAX
+        if ( command.y_vel         < -joy.profile.SPEED_MAX                                 ) { command.y_vel = -joy.profile.SPEED_MAX; }
+            // If speed is inbetween -SPEED_MAX and SPEED_MAX
+        else if (-joy.profile.SPEED_MIN <  command.y_vel && command.y_vel < joy.profile.SPEED_MIN) { command.y_vel =  0.0; }
+            // If speed is above SPEED_MAX
+        else if ( joy.profile.SPEED_MAX <  command.y_vel                                         ) { command.y_vel =  joy.profile.SPEED_MAX; }
 
+        /* === Check y === */
+        // If speed is below -SPEED_MAX
+        if ( command.x_vel         < -joy.profile.SPEED_MAX                                 ) { command.x_vel = -joy.profile.SPEED_MAX; }
+            // If speed is inbetween -SPEED_MAX and SPEED_MAX
+        else if (-joy.profile.SPEED_MIN <  command.x_vel && command.x_vel < joy.profile.SPEED_MIN) { command.x_vel =  0.0; }
+            // If speed is above SPEED_MAX
+        else if ( joy.profile.SPEED_MAX <  command.x_vel                                         ) { command.x_vel =  joy.profile.SPEED_MAX; }
+
+        /* Check rotation */
+        if      (fabs(command.w) < joy.profile.ROTATION_MIN) { command.w = 0.0; }
+        /* ================================ */
 
         return command;
     }
@@ -338,61 +383,40 @@ int main(int argc, char **argv) {
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    ros::Rate fps(1);
+    ros::Rate fps(30);
 
-    ROS_INFO_STREAM_NAMED("input", "Initializing NUM_CONTROLLERS controller(s)");
+    ROS_INFO_STREAM("Initializing NUM_CONTROLLERS controller(s)");
     for (auto &joy : joys) {
         joy.init();
     }
 
+    int tickCounter = 0;
 
     while (ros::ok()) {
-        ROS_INFO_STREAM_THROTTLE_NAMED(1, "input", "==========| Tick |==========");
+        tickCounter++;
+        ROS_INFO_STREAM_THROTTLE(5, "==========| Tick " << tickCounter << " |==========");
 
         // Handle subscriber callbacks
         ros::spinOnce();
 
         for (auto &joy : joys) {
 
-            joy.updateAutoProcess();
-
-            if(joy.getTimer() < TIMEOUT_SECONDS){
+            // If timeout not yet reached
+            if(joy.getTimer() <3 - 3 + TIMEOUT_SECONDS) { // #Liefde #LoveLife #RoboTeamLife
+                // Stop autoplay if needed
+                joy.stopAutoPlay();
+                // Send robotcommand
                 if (joy.msg) {
                     auto command = makeRobotCommand(joy, *joy.msg);
                     pub.publish(command);
                 }
 
+            }else
+            // If timeout reached
+            {
+                // Start autoplay if needed
+                joy.startAutoPlay();
             }
-
-//            else{
-//                if(joy.processAuto)
-//                    ROS_INFO_STREAM_NAMED("input", "running: " << joy.processAuto->running());
-//                else
-//                    ROS_INFO_STREAM_NAMED("input", "running: -");
-//
-//
-//                if(!joy.isRunningAuto || !joy.processAuto || !joy.processAuto->running()){
-//                    ROS_INFO_STREAM_NAMED("input", "Joy " << joy.robotID << " starting process..");
-//
-//                    boost::filesystem::path pathRosrun = bp::search_path("rosrun");
-//                    std::vector<std::string> args;
-//                    args.push_back("roboteam_tactics");
-//                    args.push_back("TestX");
-//                    args.push_back("rtt_bob/DemoAttacker");
-//                    args.push_back("string:GetBall__aimAt=ourgoal");
-//                    args.push_back("int:ROBOT_ID=" + std::to_string(joy.robotID));
-//                    args.push_back("double:Kick__kickVel=8.0");
-//
-//                    std::string command = "";
-//                    for (auto const& s : args) { command += s + " "; }
-//
-//                    ROS_INFO_STREAM_NAMED("input", command);
-//
-//                    joy.processAuto = bp::child(pathRosrun, args);
-//
-//                    joy.isRunningAuto=true;
-//                }
-//            }
         }
         fps.sleep();
     }
