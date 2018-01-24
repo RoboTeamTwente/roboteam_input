@@ -70,6 +70,7 @@ namespace rtt {
         // ==== Variables related to automatically running a RoleNode
         std::time_t timeLastReceived = std::time(0);// added by anouk
         b::optional<bp::child> processAuto;         // Holds the joy_node auto process
+        bool autoPlayOn = false;                    // Indicates if autoPlay should be started
 
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
@@ -162,7 +163,7 @@ namespace rtt {
                 args.push_back("rtt_bob/DemoAttacker");
                 args.push_back("string:GetBall__aimAt=ourgoal");
                 args.push_back("int:ROBOT_ID=" + std::to_string(robotID));
-                args.push_back("double:Kick__kickVel=8.0");
+                args.push_back("double:Kick__kickVel=3.0");
 
                 processAuto = bp::child(pathRosrun, args);
             }
@@ -281,6 +282,19 @@ namespace rtt {
             }else                                                // If Dpad is not pressed
                 joy.release(btn);                                       // Set button state to released
             /* ============================================== */
+
+            /* ==== Enable / Disable autoPlay on LeftTrigger Click ==== */
+            btn = Xbox360Controller::LeftStick;
+            if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){   // If LeftStick is pressed
+                if(!joy.isPressed(btn)){                            // Check if it was already pressed before
+                    joy.autoPlayOn = !joy.autoPlayOn;                   // Toggle autoPlayOn
+                    ROS_INFO_STREAM(joy.input << " autoPlay is now " << (joy.autoPlayOn ? "On" : "Off"));
+                }
+                joy.press(btn);                                     // Set button state to pressed
+            }else{
+                joy.release(btn);                                   // Set button state to released
+            }
+            /* ======================================================== */
 
         }
         /* ==== End DPad control ==== */
@@ -401,8 +415,8 @@ int main(int argc, char **argv) {
 
         for (auto &joy : joys) {
 
-            // If timeout not yet reached
-            if(joy.getTimer() <3 - 3 + TIMEOUT_SECONDS) { // #Liefde #LoveLife #RoboTeamLife
+            // If autoPlay is off, or timeout not yet reached
+            if(!joy.autoPlayOn || joy.getTimer() <3 - 3 + TIMEOUT_SECONDS) { // #Liefde #LoveLife #RoboTeamLife
                 // Stop autoplay if needed
                 joy.stopAutoPlay();
                 // Send robotcommand
