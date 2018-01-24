@@ -14,6 +14,7 @@ namespace bp = ::boost::process;
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
 #include "roboteam_msgs/RobotCommand.h"
+#include "roboteam_msgs/RoleDirective.h"
 #include "roboteam_msgs/World.h"
 #include "roboteam_msgs/GeometryFieldSize.h"
 #include "roboteam_msgs/GeometryData.h"
@@ -25,9 +26,10 @@ namespace bp = ::boost::process;
 
 namespace rtt {
 
-    const int NUM_CONTROLLERS = 2;
+    const int NUM_CONTROLLERS = 1;
+    const int TIMEOUT_SECONDS = 5;
 
-    /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node*/
+    /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node */
     const std::map<Xbox360Controller, int> xbox360mapping = {
             // Axes
             { Xbox360Controller::LeftStickX   , 0  },  // Drive forward / backward
@@ -53,8 +55,6 @@ namespace rtt {
             { Xbox360Controller::RightStick   , 10 }
     };
 
-
-
     struct JoyEntry {
         b::optional<bp::child> process;             // Holds the joy_node process
         b::optional<ros::Subscriber> subscriber;    // Subscribes to the joy_node topic (/js0, /js1 etc etc)
@@ -67,6 +67,11 @@ namespace rtt {
         joystick_profile profile;
         int profileCounter;
 
+        // ==== Variables related to automatically running a RoleNode
+        std::time_t timeLastReceived = std::time(0);// added by anouk
+        b::optional<bp::child> processAuto;         // Holds the joy_node auto process
+        bool autoPlayOn = false;                    // Indicates if autoPlay should be started
+
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
         int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
@@ -78,13 +83,12 @@ namespace rtt {
         }
 
         void init(){
-            std::cout << "[JoyEntry::init] " << input << " connected to robot " << robotID << std::endl;
+            ROS_INFO_STREAM(input << " connected to robot " << robotID);
             setToInput("js" + std::to_string(MY_ID));
         }
 
         void setToInput(std::string newInput) {
-
-            std::cout << "[JoyEntry::setToInput] now listening to " << newInput << std::endl;
+            ROS_INFO_STREAM(input << " now listening to " << newInput);
 
             if (newInput == input)
                 return;
@@ -94,36 +98,25 @@ namespace rtt {
             // Remove the most recently received message to prevent stale values.
             msg = b::none;
 
-            // Kill your darlings if needed
-            if (process) {
+            // Kill the current process
+            if(process) {
+                process->terminate();
                 process = b::none;
-                //std::cout << "[JoyEntry::setToInput] process killed" << std::endl;
             }
 
+            // Kill the current subscriber
             if (subscriber) {
                 subscriber->shutdown();
                 subscriber = b::none;
-                //std::cout << "[JoyEntry::setToInput] subscriber killed" << std::endl;
             }
 
-            if (input == "") {
+            if (input == "")
                 return;
-            }
-
-            // Make new process
-            std::string exec = "roslaunch";
-
-            std::vector<std::string> args = {
-                    "roboteam_input",
-                    "joy_node.launch",
-                    "jsTarget:=" + input
-            };
 
             // If this ever starts throwing weird compile time errors about
             // exe_cmd_init being deleted, just go to posix/basic_cmd.hpp
             // and mark the exe_cmd_init(const ...) function as default
             // See: https://github.com/klemens-morgenstern/boost-process/issues/21
-            //std::cout << "[JoyEntry::setToInput] Starting process" << std::endl;
 
             process = bp::child(
                     bp::search_path("roslaunch"),
@@ -140,25 +133,59 @@ namespace rtt {
             subscriber = n.subscribe(input, 1, &JoyEntry::receiveJoyMsg, this);
         }
 
-        void receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg) {
-//             std::cout << "[JoyEntry::receiveJoyMsg " << this->input << " ] Message received : " << msg << std::endl;
+        // Get the time between now and the last received message
+        int getTimer(){
+           return std::time(0) - timeLastReceived;
+        }
+        // Reset the timer to now
+        void resetTimer(){
+            timeLastReceived = std::time(0);
+        }
 
-            // Only store the newest messages
-            this->msg = *msg;
+        void stopAutoPlay(){
+            // If process is running, kill it
+            if(processAuto){
+                ROS_INFO_STREAM("Joy " << robotID << " terminating process..");
+                processAuto->terminate();
+                processAuto = b::none;      // This is required, just calling terminate doesn't cut it. Without this, processAuto->running() returns false when starting a new process
+            }
+        }
+
+        void startAutoPlay(){
+            // If no process is running, start it
+            if(!processAuto || !processAuto->running()){
+                ROS_INFO_STREAM("Joy " << robotID << " starting process..");
+
+                boost::filesystem::path pathRosrun = bp::search_path("rosrun");
+                std::vector<std::string> args;
+                args.push_back("roboteam_tactics");
+                args.push_back("TestX");
+                args.push_back("rtt_bob/DemoAttacker");
+                args.push_back("string:GetBall__aimAt=ourgoal");
+                args.push_back("int:ROBOT_ID=" + std::to_string(robotID));
+                args.push_back("double:Kick__kickVel=3.0");
+
+                processAuto = bp::child(pathRosrun, args);
+            }
+        }
+
+        void receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg) {
+            this->resetTimer(); // Reset the timer
+            this->msg = *msg;   // Only store the newest messages
         }
 
         void setRobotID(int id){
-            std::cout << "[JoyEntry::setRobotID] " << input << " connected to robot " << id << std::endl;
+            ROS_INFO_STREAM(input << " connected to robot " << id);
             robotID = id;
-
             // Reset robot velocity
             speedState.x = 0;
             speedState.y = 0;
         }
 
         void nextJoystickProfile(){
-            this->profileCounter = (this->profileCounter + 1) % NUM_JOYSTICK_PROFILES;
-            this->profile = joystick_profiles[this->profileCounter];
+            profileCounter = (profileCounter + 1) % NUM_JOYSTICK_PROFILES;
+            profile = joystick_profiles[profileCounter];
+            ROS_INFO_STREAM(input << " using profile " << profileCounter);
         }
 
         void press(Xbox360Controller btn){
@@ -175,7 +202,6 @@ namespace rtt {
             }
         }
     };
-
 
     int JoyEntry::intSupplier = 0;
     std::array<JoyEntry, NUM_CONTROLLERS> joys;
@@ -257,6 +283,19 @@ namespace rtt {
                 joy.release(btn);                                       // Set button state to released
             /* ============================================== */
 
+            /* ==== Enable / Disable autoPlay on LeftTrigger Click ==== */
+            btn = Xbox360Controller::LeftStick;
+            if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){   // If LeftStick is pressed
+                if(!joy.isPressed(btn)){                            // Check if it was already pressed before
+                    joy.autoPlayOn = !joy.autoPlayOn;                   // Toggle autoPlayOn
+                    ROS_INFO_STREAM(joy.input << " autoPlay is now " << (joy.autoPlayOn ? "On" : "Off"));
+                }
+                joy.press(btn);                                     // Set button state to pressed
+            }else{
+                joy.release(btn);                                   // Set button state to released
+            }
+            /* ======================================================== */
+
         }
         /* ==== End DPad control ==== */
 
@@ -319,24 +358,23 @@ namespace rtt {
         // ==== Set kicker velocity
         if (command.kicker) {
             command.kicker_vel = 3;
-            std::cout << "[makeRobotCommand] Kicker command for robot " << joy.robotID << std::endl;
         }
 
         /* ==== Check speed boundaries ==== */
         /* === Check x === */
-          // If speed is below -SPEED_MAX
-             if ( command.y_vel         < -joy.profile.SPEED_MAX                                 ) { command.y_vel = -joy.profile.SPEED_MAX; }
-          // If speed is inbetween -SPEED_MAX and SPEED_MAX
+        // If speed is below -SPEED_MAX
+        if ( command.y_vel         < -joy.profile.SPEED_MAX                                 ) { command.y_vel = -joy.profile.SPEED_MAX; }
+            // If speed is inbetween -SPEED_MAX and SPEED_MAX
         else if (-joy.profile.SPEED_MIN <  command.y_vel && command.y_vel < joy.profile.SPEED_MIN) { command.y_vel =  0.0; }
-          // If speed is above SPEED_MAX
+            // If speed is above SPEED_MAX
         else if ( joy.profile.SPEED_MAX <  command.y_vel                                         ) { command.y_vel =  joy.profile.SPEED_MAX; }
 
         /* === Check y === */
-          // If speed is below -SPEED_MAX
-             if ( command.x_vel         < -joy.profile.SPEED_MAX                                 ) { command.x_vel = -joy.profile.SPEED_MAX; }
-          // If speed is inbetween -SPEED_MAX and SPEED_MAX
+        // If speed is below -SPEED_MAX
+        if ( command.x_vel         < -joy.profile.SPEED_MAX                                 ) { command.x_vel = -joy.profile.SPEED_MAX; }
+            // If speed is inbetween -SPEED_MAX and SPEED_MAX
         else if (-joy.profile.SPEED_MIN <  command.x_vel && command.x_vel < joy.profile.SPEED_MIN) { command.x_vel =  0.0; }
-          // If speed is above SPEED_MAX
+            // If speed is above SPEED_MAX
         else if ( joy.profile.SPEED_MAX <  command.x_vel                                         ) { command.x_vel =  joy.profile.SPEED_MAX; }
 
         /* Check rotation */
@@ -347,8 +385,11 @@ namespace rtt {
     }
 } // rtt
 
+
+
 int main(int argc, char **argv) {
     using namespace rtt;
+
 
     ros::init(argc, argv, "roboteam_input");
     ros::NodeHandle n;
@@ -356,27 +397,42 @@ int main(int argc, char **argv) {
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    ros::Rate fps(60);
+    ros::Rate fps(30);
 
+    ROS_INFO_STREAM("Initializing NUM_CONTROLLERS controller(s)");
     for (auto &joy : joys) {
         joy.init();
     }
 
-    while (ros::ok()) {
+    int tickCounter = 0;
 
-        std::time_t t = std::time(0);
-//        std::cout << "\n=======================================" << t << "============================================\n";
+    while (ros::ok()) {
+        tickCounter++;
+        ROS_INFO_STREAM_THROTTLE(5, "==========| Tick " << tickCounter << " |==========");
+
+        // Handle subscriber callbacks
+        ros::spinOnce();
 
         for (auto &joy : joys) {
-            if (joy.msg) {
-                auto command = makeRobotCommand(joy, *joy.msg);
-                pub.publish(command);
+
+            // If autoPlay is off, or timeout not yet reached
+            if(!joy.autoPlayOn || joy.getTimer() <3 - 3 + TIMEOUT_SECONDS) { // #Liefde #LoveLife #RoboTeamLife
+                // Stop autoplay if needed
+                joy.stopAutoPlay();
+                // Send robotcommand
+                if (joy.msg) {
+                    auto command = makeRobotCommand(joy, *joy.msg);
+                    pub.publish(command);
+                }
+
+            }else
+            // If timeout reached
+            {
+                // Start autoplay if needed
+                joy.startAutoPlay();
             }
         }
-
         fps.sleep();
-
-        ros::spinOnce();
     }
 
     return 0;
