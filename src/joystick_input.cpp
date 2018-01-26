@@ -72,6 +72,10 @@ namespace rtt {
         b::optional<bp::child> processAuto;         // Holds the joy_node auto process
         bool autoPlayOn = false;                    // Indicates if autoPlay should be started
 
+        bool skillIsRunning = false;
+        b::optional<bp::child> processSkill;
+
+
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
         int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
@@ -163,7 +167,7 @@ namespace rtt {
                 args.push_back("rtt_bob/DemoAttacker");
                 args.push_back("string:GetBall__aimAt=ourgoal");
                 args.push_back("int:ROBOT_ID=" + std::to_string(robotID));
-                args.push_back("double:Kick__kickVel=3.0");
+                args.push_back("double:Kick__kickVel=4.0");
 
                 processAuto = bp::child(pathRosrun, args);
             }
@@ -180,6 +184,8 @@ namespace rtt {
             // Reset robot velocity
             speedState.x = 0;
             speedState.y = 0;
+            // Reset geneva drive
+            genevaState = 0;
         }
 
         void nextJoystickProfile(){
@@ -213,39 +219,31 @@ namespace rtt {
         return T(0);
     }
 
-    roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy const &msg) {
-//        std::cout << "[makeRobotCommand] MY_ID: " << joy.MY_ID << " input: " << joy.input << " robotID: " << joy.robotID << std::endl;
+    void handleButtons(JoyEntry &joy, sensor_msgs::Joy const &msg){
 
-        roboteam_msgs::RobotCommand command;
-
-        command.id = joy.robotID;
+        Xbox360Controller btn;
 
         /* ==== DPad control is off by default. While Y is pressed it is enabled ==== */
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::Y))) {
 
-            Xbox360Controller btn;
-
             /* === Check if profile has to be modified === */
             btn = Xbox360Controller::Start;
-            if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){  // if Start is pressed
-                if(!joy.isPressed(btn)){                    // Check if it was already pressed before
-                    joy.nextJoystickProfile();                  // If not, switch to next profile
+            if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){    // If Start is pressed
+                if(!joy.isPressed(btn)){                                // Check if it was already pressed before
+                    joy.nextJoystickProfile();                              // If not, switch to next profile
                 }
-                joy.press(btn);                             // Set button state to pressed
-            }else{
-                joy.release(btn);                           // Set button state to released
+                joy.press(btn);                                         // Set button state to pressed
+            }else{                                                  // Else
+                joy.release(btn);                                       // Set button state to released
             }
 
             /* ==== Check if ID has to be switched lower ==== */
             btn = Xbox360Controller::DpadY;
             if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadUp is pressed
-                bool pressed = joy.isPressed(btn);            // Store whether the button was pressed before
-                joy.press(btn);                               // Set button state to pressed
-                if(!pressed) {                                // Check if it was already pressed before
-                    joy.setRobotID((joy.robotID + 1) % 16);                // If not, increment id
-                    joy.genevaState = 0;                                   // Reset Geneva Drive
-                    command.geneva_state = joy.genevaState;                // Reset Geneva Drive
-                    return command;
+                bool pressed = joy.isPressed(btn);                  // Store whether the button was pressed before
+                joy.press(btn);                                     // Set button state to pressed
+                if(!pressed) {                                      // Check if it was already pressed before
+                    joy.setRobotID((joy.robotID + 1) % 16);             // If not, increment id
                 }
             }else
             if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){   // If DpadDown is pressed
@@ -253,9 +251,6 @@ namespace rtt {
                 joy.press(btn);                                     // Set button state to pressed
                 if(!pressed) {                                      // Check if it was already pressed before
                     joy.setRobotID((joy.robotID + 15) % 16);            // If not, decrement id
-                    joy.genevaState = 0;                                // Reset Geneva Drive
-                    command.geneva_state = joy.genevaState;             // Reset Geneva Drive
-                    return command;
                 }
             }else                                               // If Dpad is not pressed
                 joy.release(btn);                                   // Set button state to released
@@ -263,31 +258,32 @@ namespace rtt {
 
             /* ==== Rotate kicker (Geneva Drive)==== */
             btn = Xbox360Controller::DpadX;
-            if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){    // If DpadLeft is pressed
-                if(!joy.isPressed(btn)) {                               // Check if it was already pressed before
-                    joy.genevaState--;                                    // Turn Geneva Drive to the left
-                    if (joy.genevaState < -2) {                           // Geneva state cannot go below -2 (such state does not exist)
+            if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){   // If DpadLeft is pressed
+                if(!joy.isPressed(btn)) {                           // Check if it was already pressed before
+                    joy.genevaState--;                                  // Turn Geneva Drive to the left
+                    if (joy.genevaState < -2) {                         // Geneva state cannot go below -2 (such state does not exist)
                         joy.genevaState = -2;                               // Set the Geneva state back to -2
                     }
                 }
-                joy.press(btn);                                         // Set button state to pressed
-            } else if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){ // If DpadRight is pressed
-                if(!joy.isPressed(btn)) {                               // Check if it was already pressed before
-                    joy.genevaState++;                                    // Turn Geneva Drive to the right
-                    if (joy.genevaState > 2) {                           // Geneva state cannot go above 2 (such state does not exist)
-                        joy.genevaState = 2;                               // Set the Geneva state back to 2
+                joy.press(btn);                                     // Set button state to pressed
+            }else
+            if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){   // If DpadRight is pressed
+                if(!joy.isPressed(btn)) {                           // Check if it was already pressed before
+                    joy.genevaState++;                                  // Turn Geneva Drive to the right
+                    if (joy.genevaState > 2) {                          // Geneva state cannot go above 2 (such state does not exist)
+                        joy.genevaState = 2;                                // Set the Geneva state back to 2
                     }
                 }
-                joy.press(btn);                                         // Set button state to pressed
+                joy.press(btn);                                     // Set button state to pressed
             }else                                                // If Dpad is not pressed
-                joy.release(btn);                                       // Set button state to released
+                joy.release(btn);                                   // Set button state to released
             /* ============================================== */
 
             /* ==== Enable / Disable autoPlay on LeftTrigger Click ==== */
             btn = Xbox360Controller::LeftStick;
             if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){   // If LeftStick is pressed
-                if(!joy.isPressed(btn)){                            // Check if it was already pressed before
-                    joy.autoPlayOn = !joy.autoPlayOn;                   // Toggle autoPlayOn
+                if(!joy.isPressed(btn)){                                // Check if it was already pressed before
+                    joy.autoPlayOn = !joy.autoPlayOn;                       // Toggle autoPlayOn
                     ROS_INFO_STREAM(joy.input << " autoPlay is now " << (joy.autoPlayOn ? "On" : "Off"));
                 }
                 joy.press(btn);                                     // Set button state to pressed
@@ -300,6 +296,56 @@ namespace rtt {
         /* ==== End DPad control ==== */
 
 
+
+
+        /* ==== Enable / Disable getBall on A ==== */
+        btn = Xbox360Controller::A;
+        if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){    // If LeftStick is pressed
+            if(!joy.isPressed(btn)){                                // Check if it was already pressed before
+
+                ROS_INFO_STREAM(joy.input << " skill is now running");
+
+                if(joy.processSkill)                                    // If previous process is still running
+                    joy.processSkill->terminate();                          // Terminate it
+                joy.processSkill = b::none;                             // Remove the previous process
+
+                boost::filesystem::path pathRosrun = bp::search_path("rosrun");
+                std::vector<std::string> args;
+                args.push_back("roboteam_tactics");
+                args.push_back("TestX");
+                args.push_back("GetBall");
+                args.push_back("int:ROBOT_ID=" + std::to_string(joy.robotID));
+                args.push_back("string:aimAt=ourgoal");
+
+                joy.processSkill = bp::child(pathRosrun, args);         // Start new process
+                joy.skillIsRunning = true;
+
+            }
+            joy.press(btn);                                     // Set button state to pressed
+        }else{
+            if(joy.isPressed(btn)){                             // If button was pressed, but not anymore
+
+                ROS_INFO_STREAM(joy.input << " skill has stopped");
+
+                if(joy.processSkill)                                // If previous process is still running
+                    joy.processSkill->terminate();                      // Terminate it
+                joy.processSkill = b::none;                         // Remove the previous process
+
+                joy.skillIsRunning = false;
+            }
+            joy.release(btn);                                   // Set button state to released
+        }
+        /* ======================================================== */
+
+    }
+
+    roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy const &msg) {
+
+        roboteam_msgs::RobotCommand command;
+
+        command.id = joy.robotID;
+
+        Xbox360Controller btn;
 
         /* ==== Turn robot clockwise ==== */
         if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))){
@@ -338,7 +384,6 @@ namespace rtt {
 
 
         /* ==== Set Kicker ==== */
-        Xbox360Controller btn;
         btn = Xbox360Controller::RightBumper;
         if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If RightBumper is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
@@ -397,7 +442,7 @@ int main(int argc, char **argv) {
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    ros::Rate fps(30);
+    ros::Rate fps(60);
 
     ROS_INFO_STREAM("Initializing NUM_CONTROLLERS controller(s)");
     for (auto &joy : joys) {
@@ -417,12 +462,20 @@ int main(int argc, char **argv) {
 
             // If autoPlay is off, or timeout not yet reached
             if(!joy.autoPlayOn || joy.getTimer() <3 - 3 + TIMEOUT_SECONDS) { // #Liefde #LoveLife #RoboTeamLife
+
                 // Stop autoplay if needed
                 joy.stopAutoPlay();
-                // Send robotcommand
-                if (joy.msg) {
-                    auto command = makeRobotCommand(joy, *joy.msg);
-                    pub.publish(command);
+
+                // If joystick message received
+                if(joy.msg) {
+                    // HandleButtons, such as ID switching
+                    handleButtons(joy, *joy.msg);
+
+                    // Send robotcommand if skill is not running atm
+                    if (!joy.skillIsRunning) {
+                        auto command = makeRobotCommand(joy, *joy.msg);
+                        pub.publish(command);
+                    }
                 }
 
             }else
