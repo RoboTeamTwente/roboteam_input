@@ -436,7 +436,7 @@ int main(int argc, char **argv) {
     using namespace rtt;
 
 
-    ros::init(argc, argv, "roboteam_input");
+    ros::init(argc, argv, "joystick_controller");
     ros::NodeHandle n;
 
     // Publish on robotcommands
