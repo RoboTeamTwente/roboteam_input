@@ -39,7 +39,7 @@ namespace rtt {
             { Xbox360Controller::RightStickY  , 4  },
             { Xbox360Controller::RightTrigger , 5  },
             { Xbox360Controller::DpadX        , 6  },  // Left : Turn Geneva Drive left / Right : Turn Geneva Drive right
-            { Xbox360Controller::DpadY        , 7  },  // Up : ID +=1 / Down : ID -= 1
+            { Xbox360Controller::DpadY        , 7  },  // Up+Y : ID +=1 / Down+Y : ID -= 1
 
             // Buttons
             { Xbox360Controller::A, 0 },
@@ -71,6 +71,7 @@ namespace rtt {
         std::time_t timeLastReceived = std::time(0);// added by anouk
         b::optional<bp::child> processAuto;         // Holds the joy_node auto process
         bool autoPlayOn = false;                    // Indicates if autoPlay should be started
+        bool autoAttacker = true;
 
         bool skillIsRunning = false;
         b::optional<bp::child> processSkill;
@@ -147,29 +148,48 @@ namespace rtt {
         }
 
         void stopAutoPlay(){
-            // If process is running, kill it
-            if(processAuto){
-                ROS_INFO_STREAM("Joy " << robotID << " terminating process..");
-                processAuto->terminate();
-                processAuto = b::none;      // This is required, just calling terminate doesn't cut it. Without this, processAuto->running() returns false when starting a new process
-            }
-        }
-
-        void startAutoPlay(){
-            // If no process is running, start it
-            if(!processAuto || !processAuto->running()){
-                ROS_INFO_STREAM("Joy " << robotID << " starting process..");
-
+            // If the autoAttacker is also on (in addition to the keeper which is always on) ..
+            // ..change to the strategy with only a keeper. The attacker will now have the Sleep Role..
+            // .. but this role also avoids the keeper area, and possibly I'll add border avoidance to that.
+            // Note that autoAttacker is initially set to true, such that this strategy starts immediately
+            // PROBLEM: if the autoAttacker has started, and joystick takes over again, the defense area avoidance doesnt work anymore.
+            if(autoAttacker) {
                 boost::filesystem::path pathRosrun = bp::search_path("rosrun");
                 std::vector<std::string> args;
                 args.push_back("roboteam_tactics");
                 args.push_back("TestX");
-                args.push_back("rtt_bob/DemoAttacker");
-                args.push_back("string:GetBall__aimAt=ourgoal");
-                args.push_back("int:ROBOT_ID=" + std::to_string(robotID));
-                args.push_back("double:Kick__kickVel=4.0");
+                args.push_back("rtt_jelle/DemoStratOnlyKeeper");
 
                 processAuto = bp::child(pathRosrun, args);
+                autoAttacker = false;
+            }
+            // // If process is running, kill it
+            // if(processAuto){
+            //     ROS_INFO_STREAM("Joy " << robotID << " terminating process..");
+            //     processAuto->terminate();
+            //     processAuto = b::none;      // This is required, just calling terminate doesn't cut it. Without this, processAuto->running() returns false when starting a new process
+            // }
+        }
+
+        void startAutoPlay(){
+            // // If no process is running, start it
+            // // if(!processAuto || !processAuto->running()){
+            //     ROS_INFO_STREAM("Joy " << robotID << " starting process..");
+
+            // If autoAttacker was not on yet, start the strategy that includes the DemoAttacker
+            if(!autoAttacker) {
+                boost::filesystem::path pathRosrun = bp::search_path("rosrun");
+                std::vector<std::string> args;
+                args.push_back("roboteam_tactics");
+                args.push_back("TestX");
+                args.push_back("rtt_jelle/DemoStrat");
+
+                //args.push_back("string:GetBall__aimAt=ourgoal");
+                // args.push_back("int:ROBOT_ID=" + std::to_string(robotID));
+                // args.push_back("double:Kick__kickVel=4.0");
+
+                processAuto = bp::child(pathRosrun, args);
+                autoAttacker = true;
             }
         }
 
@@ -313,9 +333,10 @@ namespace rtt {
                 std::vector<std::string> args;
                 args.push_back("roboteam_tactics");
                 args.push_back("TestX");
-                args.push_back("GetBall");
+                args.push_back("rtt_jelle/DemoAttacker");
                 args.push_back("int:ROBOT_ID=" + std::to_string(joy.robotID));
-                args.push_back("string:aimAt=ourgoal");
+                args.push_back("bool:GetBall_A_dribblerOff=false");
+                args.push_back("bool:GetBall_A_passOn=false");
 
                 joy.processSkill = bp::child(pathRosrun, args);         // Start new process
                 joy.skillIsRunning = true;
@@ -402,7 +423,7 @@ namespace rtt {
 
         // ==== Set kicker velocity
         if (command.kicker) {
-            command.kicker_vel = 3;
+            command.kicker_vel = 2.5;
         }
 
         /* ==== Check speed boundaries ==== */
