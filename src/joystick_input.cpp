@@ -27,7 +27,7 @@ namespace bp = ::boost::process;
 namespace rtt {
 
     const int NUM_CONTROLLERS = 1;
-    const int TIMEOUT_SECONDS = 5;
+    const int TIMEOUT_SECONDS = 1;
 
     /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node */
     const std::map<Xbox360Controller, int> xbox360mapping = {
@@ -72,6 +72,7 @@ namespace rtt {
         b::optional<bp::child> processAuto;         // Holds the joy_node auto process
         bool autoPlayOn = false;                    // Indicates if autoPlay should be started
         bool autoAttacker = true;
+        bool dribblerOn = false;
 
         bool skillIsRunning = false;
         b::optional<bp::child> processSkill;
@@ -84,7 +85,7 @@ namespace rtt {
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 
         JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {
-            this->profile = profile_default;
+            this->profile = profile_slow;
         }
 
         void init(){
@@ -95,13 +96,15 @@ namespace rtt {
         void setToInput(std::string newInput) {
             ROS_INFO_STREAM(input << " now listening to " << newInput);
 
+            // Remove the most recently received message to prevent stale values.
+            msg = b::none;
+
             if (newInput == input)
                 return;
 
             input = newInput;
 
-            // Remove the most recently received message to prevent stale values.
-            msg = b::none;
+            
 
             // Kill the current process
             if(process) {
@@ -388,25 +391,33 @@ namespace rtt {
 
         /* ==== Smoothing ==== */
         /* Smooth x */
-        double diffX = -joy.speedState.x + joy.profile.SPEED_MULTIPLIER * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
+        double spd_mult = joy.profile.SPEED_MULTIPLIER;
+        if (joy.dribblerOn) {spd_mult = 0.5;}
+
+        double diffX = -joy.speedState.x + getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
         joy.speedState.x += joy.profile.SMOOTH_FACTOR * diffX;
-        command.x_vel = joy.speedState.x;
+        command.x_vel = joy.speedState.x * spd_mult;
 
         /* Smooth y */
-        double diffY = -joy.speedState.y + joy.profile.SPEED_MULTIPLIER * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
+        double diffY = -joy.speedState.y + getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
         joy.speedState.y += joy.profile.SMOOTH_FACTOR * diffY;
-        command.y_vel = joy.speedState.y;
+        command.y_vel = joy.speedState.y * spd_mult;
         /* =================== */
 
         // ==== Rotation
         double rot_mult = joy.profile.ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
+        if (joy.dribblerOn) {rot_mult = 2.2;}
         command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rot_mult;
 
 
 
-        /* ==== Set Kicker ==== */
+        /* ==== Set Kicker ==== both right bumber and right trigger work ====*/ 
         btn = Xbox360Controller::RightBumper;
-        if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If RightBumper is pressed
+        double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
+		if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
+			RightTriggerVal = 1;
+		}
+        if(getVal(msg.buttons, xbox360mapping.at(btn)) || RightTriggerVal<0.9){        // If RightBumper is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
                 command.kicker = true;                                  // If not, activate kicker
             joy.press(btn);                                         // Set button state to pressed
@@ -415,8 +426,25 @@ namespace rtt {
         /* ==================== */
 
 
-        // ==== Set dribbler
-        command.dribbler = getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) == 1;
+        // ==== Set dribbler == Both left trigger and left bumper work ==
+  //       double LeftTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftTrigger));
+		// if(LeftTriggerVal == 0 && !std::signbit(LeftTriggerVal)) {
+		// 	LeftTriggerVal = 1;
+		// }
+        btn = Xbox360Controller::LeftBumper;
+        if(getVal(msg.buttons, xbox360mapping.at(btn))){
+        	if(!joy.isPressed(btn)) {                                 // Check if it was already pressed before
+                joy.dribblerOn = !joy.dribblerOn;                                 // If not, activate dribbler
+            }
+            joy.press(btn);                                         // Set button state to pressed
+        } else {
+        	joy.release(btn); 
+        }
+        command.dribbler = joy.dribblerOn;
+
+        	                                                // If RightBumper is not pressed
+                                                   // Set button state to released
+        /* ==================== */
 
         // ==== Set geneva drive state
         command.geneva_state = joy.genevaState;
@@ -497,6 +525,9 @@ int main(int argc, char **argv) {
                         auto command = makeRobotCommand(joy, *joy.msg);
                         pub.publish(command);
                     }
+                } else {
+                	roboteam_msgs::RobotCommand command;
+                	pub.publish(command);
                 }
 
             }else
