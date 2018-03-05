@@ -79,7 +79,7 @@ namespace rtt {
 
 
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
-        Vector2 speedState;                         // Holds the x-speed and y-speed of the robot
+        Vector2 speedState;                         // Holds the x-speed and y-speed of the robot.
         int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
 
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
@@ -99,12 +99,10 @@ namespace rtt {
             // Remove the most recently received message to prevent stale values.
             msg = b::none;
 
-            if (newInput == input)
+            if(newInput == input)
                 return;
 
             input = newInput;
-
-            
 
             // Kill the current process
             if(process) {
@@ -113,12 +111,12 @@ namespace rtt {
             }
 
             // Kill the current subscriber
-            if (subscriber) {
+            if(subscriber) {
                 subscriber->shutdown();
                 subscriber = b::none;
             }
 
-            if (input == "")
+            if(input == "")
                 return;
 
             // If this ever starts throwing weird compile time errors about
@@ -236,7 +234,7 @@ namespace rtt {
     std::array<JoyEntry, NUM_CONTROLLERS> joys;
 
     template<typename T> T getVal(const std::vector<T> &values, int index) {
-        if (index < values.size()) {
+        if(index < values.size()) {
             return values[index];
         }
         return T(0);
@@ -284,7 +282,7 @@ namespace rtt {
             if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){   // If DpadLeft is pressed
                 if(!joy.isPressed(btn)) {                           // Check if it was already pressed before
                     joy.genevaState--;                                  // Turn Geneva Drive to the left
-                    if (joy.genevaState < -2) {                         // Geneva state cannot go below -2 (such state does not exist)
+                    if(joy.genevaState < -2) {                         // Geneva state cannot go below -2 (such state does not exist)
                         joy.genevaState = -2;                               // Set the Geneva state back to -2
                     }
                 }
@@ -293,7 +291,7 @@ namespace rtt {
             if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){   // If DpadRight is pressed
                 if(!joy.isPressed(btn)) {                           // Check if it was already pressed before
                     joy.genevaState++;                                  // Turn Geneva Drive to the right
-                    if (joy.genevaState > 2) {                          // Geneva state cannot go above 2 (such state does not exist)
+                    if(joy.genevaState > 2) {                          // Geneva state cannot go above 2 (such state does not exist)
                         joy.genevaState = 2;                                // Set the Geneva state back to 2
                     }
                 }
@@ -391,30 +389,40 @@ namespace rtt {
 
         /* ==== Smoothing ==== */
         /* Smooth x */
-        double spd_mult = joy.profile.SPEED_MULTIPLIER;
-        if (joy.dribblerOn) {spd_mult = 0.5;}
+        double speedMultiplier = joy.profile.SPEED_MULTIPLIER;
+        // If the dribbler is on, reduce the speed of the robot
+        if(joy.dribblerOn){
+            speedMultiplier = 0.5;
+        }
 
-        double diffX = -joy.speedState.x + getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
-        joy.speedState.x += joy.profile.SMOOTH_FACTOR * diffX;
-        command.x_vel = joy.speedState.x * spd_mult;
+        double speedXdesired = speedMultiplier * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
+        double speedXdiff = -joy.speedState.x + speedXdesired;
+        joy.speedState.x += joy.profile.SMOOTH_FACTOR * speedXdiff;
+        command.x_vel = joy.speedState.x;
 
         /* Smooth y */
-        double diffY = -joy.speedState.y + getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
-        joy.speedState.y += joy.profile.SMOOTH_FACTOR * diffY;
-        command.y_vel = joy.speedState.y * spd_mult;
+        double speedYdesired = speedMultiplier * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
+        double speedYdiff = -joy.speedState.y + speedYdesired;
+        joy.speedState.y += joy.profile.SMOOTH_FACTOR * speedYdiff;
+        command.y_vel = joy.speedState.y;
         /* =================== */
 
         // ==== Rotation
-        double rot_mult = joy.profile.ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
-        if (joy.dribblerOn) {rot_mult = 2.2;}
-        command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rot_mult;
+        double rotationMultiplier = joy.profile.ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
+        // If the dribbler is on, reduce the rotation speed of the robot
+        if(joy.dribblerOn) {
+            rotationMultiplier = 2.2;
+        }
+        command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rotationMultiplier;
 
 
 
         /* ==== Set Kicker ==== both right bumber and right trigger work ====*/ 
         btn = Xbox360Controller::RightBumper;
+        /* If not pressed yet, returns 0. If not pressed anymore, returns 1. If pressed halfway, returns -0 */
         double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
-		if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
+        // If right trigger has not been pressed since starting the program
+        if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
 			RightTriggerVal = 1;
 		}
         if(getVal(msg.buttons, xbox360mapping.at(btn)) || RightTriggerVal<0.9){        // If RightBumper is pressed
@@ -426,50 +434,43 @@ namespace rtt {
         /* ==================== */
 
 
-        // ==== Set dribbler == Both left trigger and left bumper work ==
-  //       double LeftTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftTrigger));
-		// if(LeftTriggerVal == 0 && !std::signbit(LeftTriggerVal)) {
-		// 	LeftTriggerVal = 1;
-		// }
+        // ==== Set dribbler ====
         btn = Xbox360Controller::LeftBumper;
         if(getVal(msg.buttons, xbox360mapping.at(btn))){
-        	if(!joy.isPressed(btn)) {                                 // Check if it was already pressed before
-                joy.dribblerOn = !joy.dribblerOn;                                 // If not, activate dribbler
+        	if(!joy.isPressed(btn)) {                               // Check if it was already pressed before
+                joy.dribblerOn = !joy.dribblerOn;                       // If not, activate dribbler
             }
             joy.press(btn);                                         // Set button state to pressed
         } else {
-        	joy.release(btn); 
+        	joy.release(btn);                                       // Set button state to released
         }
         command.dribbler = joy.dribblerOn;
-
-        	                                                // If RightBumper is not pressed
-                                                   // Set button state to released
         /* ==================== */
 
         // ==== Set geneva drive state
         command.geneva_state = joy.genevaState;
 
         // ==== Set kicker velocity
-        if (command.kicker) {
+        if(command.kicker) {
             command.kicker_vel = 2.5;
         }
 
         /* ==== Check speed boundaries ==== */
         /* === Check x === */
         // If speed is below -SPEED_MAX
-        if ( command.y_vel         < -joy.profile.SPEED_MAX                                 ) { command.y_vel = -joy.profile.SPEED_MAX; }
+        if(command.y_vel         < -joy.profile.SPEED_MAX                                 ) { command.y_vel = -joy.profile.SPEED_MAX; }
             // If speed is inbetween -SPEED_MAX and SPEED_MAX
-        else if (-joy.profile.SPEED_MIN <  command.y_vel && command.y_vel < joy.profile.SPEED_MIN) { command.y_vel =  0.0; }
+        else if(-joy.profile.SPEED_MIN <  command.y_vel && command.y_vel < joy.profile.SPEED_MIN) { command.y_vel =  0.0; }
             // If speed is above SPEED_MAX
-        else if ( joy.profile.SPEED_MAX <  command.y_vel                                         ) { command.y_vel =  joy.profile.SPEED_MAX; }
+        else if(joy.profile.SPEED_MAX <  command.y_vel                                         ) { command.y_vel =  joy.profile.SPEED_MAX; }
 
         /* === Check y === */
         // If speed is below -SPEED_MAX
-        if ( command.x_vel         < -joy.profile.SPEED_MAX                                 ) { command.x_vel = -joy.profile.SPEED_MAX; }
+        if(command.x_vel         < -joy.profile.SPEED_MAX                                 ) { command.x_vel = -joy.profile.SPEED_MAX; }
             // If speed is inbetween -SPEED_MAX and SPEED_MAX
-        else if (-joy.profile.SPEED_MIN <  command.x_vel && command.x_vel < joy.profile.SPEED_MIN) { command.x_vel =  0.0; }
+        else if(-joy.profile.SPEED_MIN <  command.x_vel && command.x_vel < joy.profile.SPEED_MIN) { command.x_vel =  0.0; }
             // If speed is above SPEED_MAX
-        else if ( joy.profile.SPEED_MAX <  command.x_vel                                         ) { command.x_vel =  joy.profile.SPEED_MAX; }
+        else if(joy.profile.SPEED_MAX <  command.x_vel                                         ) { command.x_vel =  joy.profile.SPEED_MAX; }
 
         /* Check rotation */
         if      (fabs(command.w) < joy.profile.ROTATION_MIN) { command.w = 0.0; }
@@ -521,13 +522,10 @@ int main(int argc, char **argv) {
                     handleButtons(joy, *joy.msg);
 
                     // Send robotcommand if skill is not running atm
-                    if (!joy.skillIsRunning) {
+                    if(!joy.skillIsRunning) {
                         auto command = makeRobotCommand(joy, *joy.msg);
                         pub.publish(command);
                     }
-                } else {
-                	roboteam_msgs::RobotCommand command;
-                	pub.publish(command);
                 }
 
             }else
