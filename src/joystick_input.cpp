@@ -13,6 +13,7 @@ namespace bp = ::boost::process;
 
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
+#include "diagnostic_msgs/DiagnosticArray.h"    // Used for listening to Joy on /diagnostics
 #include "roboteam_msgs/RobotCommand.h"
 #include "roboteam_msgs/RoleDirective.h"
 #include "roboteam_msgs/World.h"
@@ -26,7 +27,7 @@ namespace bp = ::boost::process;
 
 namespace rtt {
 
-    const int NUM_CONTROLLERS = 1;
+    const int NUM_CONTROLLERS = 2;
     const int TIMEOUT_SECONDS = 1;
 
     /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node */
@@ -81,6 +82,7 @@ namespace rtt {
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot.
         int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
+        bool controllerConnected = true;           // Holds if the corresponding controller is connected
 
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 
@@ -215,6 +217,21 @@ namespace rtt {
             ROS_INFO_STREAM(input << " using profile " << profileCounter);
         }
 
+        void setControllerConnected(bool isConnected){
+            if(isConnected && !controllerConnected)
+                ROS_INFO_STREAM(input << ": Controller reconnected");
+
+            if(!isConnected && controllerConnected)
+                ROS_WARN_STREAM(input << ": Controller disconnected");
+
+            controllerConnected = isConnected;
+
+            // Clear message if controller is disconnected, to make the robot stop
+            if(!controllerConnected)
+                msg = boost::none;
+
+        }
+
         void press(Xbox360Controller btn){
             btnState[btn] = true;
         }
@@ -229,6 +246,10 @@ namespace rtt {
             }
         }
     };
+
+
+    // ======================================================================== //
+
 
     int JoyEntry::intSupplier = 0;
     std::array<JoyEntry, NUM_CONTROLLERS> joys;
@@ -478,6 +499,22 @@ namespace rtt {
 
         return command;
     }
+
+    void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr& cmd){
+
+        int size = cmd->status.size();
+        for(int i = 0; i < size; i++){
+
+            std::string target = cmd->status.at(i).values.at(0).value;
+            bool isConnected = cmd->status.at(i).message == "OK";
+
+            for (auto &joy : joys)
+                if("/" + joy.input == target)
+                    joy.setControllerConnected(isConnected);
+
+        }
+    }
+
 } // rtt
 
 
@@ -491,6 +528,9 @@ int main(int argc, char **argv) {
 
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
+
+    // Listen to diagnostics
+    ros::Subscriber sub = n.subscribe<diagnostic_msgs::DiagnosticArray>("diagnostics", 1, &handleDiagnostics);
 
     ros::Rate fps(60);
 
