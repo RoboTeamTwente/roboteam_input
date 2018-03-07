@@ -363,6 +363,12 @@ namespace rtt {
                 args.push_back("bool:GetBall_A_dribblerOff=false");
                 args.push_back("bool:GetBall_A_passOn=false");
 
+                bt::Blackboard* bb = new bt::Blackboard();
+                bb->SetInt("ROBOT_ID", joy.robotID);
+                bb->SetBool("GetBall_A_dribblerOff", false);
+                bb->SetBool("GetBall_A_passOn", false);
+
+
                 ROS_INFO_STREAM(joy.input << " starting rtt_jelle/DemoAttacker");
                 joy.processSkill = bp::child(pathRosrun, args);         // Start new process
                 joy.skillIsRunning = true;
