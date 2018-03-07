@@ -14,7 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   roboteam_msgs # for message definition
   roboteam_utils
-  # roboteam_tactics
+  roboteam_tactics
 )
 
 ## Need to install:
@@ -36,7 +36,7 @@ catkin_package(
     message_runtime
     roboteam_msgs
     roboteam_utils
-    # roboteam_tactics
+    roboteam_tactics
 )
 
 ###########

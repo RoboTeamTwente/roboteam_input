@@ -21,9 +21,12 @@ namespace bp = ::boost::process;
 #include "roboteam_msgs/GeometryData.h"
 #include "roboteam_utils/Vector2.h"
 #include "roboteam_utils/world_analysis.h"
+#include "roboteam_tactics/bt.hpp"
 
 #include "joystick_enums.h"
 #include "joystick_profiles.h"
+
+
 
 namespace rtt {
 
@@ -163,6 +166,7 @@ namespace rtt {
                 args.push_back("TestX");
                 args.push_back("rtt_jelle/DemoStratOnlyKeeper");
 
+                ROS_INFO_STREAM(input << " starting rtt_jelle/DemoStratOnlyKeeper");
                 processAuto = bp::child(pathRosrun, args);
                 autoAttacker = false;
             }
@@ -191,6 +195,7 @@ namespace rtt {
                 // args.push_back("int:ROBOT_ID=" + std::to_string(robotID));
                 // args.push_back("double:Kick__kickVel=4.0");
 
+                ROS_INFO_STREAM(input << " starting rtt_jelle/DemoStrat");
                 processAuto = bp::child(pathRosrun, args);
                 autoAttacker = true;
             }
@@ -345,8 +350,6 @@ namespace rtt {
         if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){    // If LeftStick is pressed
             if(!joy.isPressed(btn)){                                // Check if it was already pressed before
 
-                ROS_INFO_STREAM(joy.input << " skill is now running");
-
                 if(joy.processSkill)                                    // If previous process is still running
                     joy.processSkill->terminate();                          // Terminate it
                 joy.processSkill = b::none;                             // Remove the previous process
@@ -360,6 +363,7 @@ namespace rtt {
                 args.push_back("bool:GetBall_A_dribblerOff=false");
                 args.push_back("bool:GetBall_A_passOn=false");
 
+                ROS_INFO_STREAM(joy.input << " starting rtt_jelle/DemoAttacker");
                 joy.processSkill = bp::child(pathRosrun, args);         // Start new process
                 joy.skillIsRunning = true;
 
@@ -368,7 +372,7 @@ namespace rtt {
         }else{
             if(joy.isPressed(btn)){                             // If button was pressed, but not anymore
 
-                ROS_INFO_STREAM(joy.input << " skill has stopped");
+                ROS_INFO_STREAM(joy.input << " stopping skill");
 
                 if(joy.processSkill)                                // If previous process is still running
                     joy.processSkill->terminate();                      // Terminate it
@@ -538,6 +542,10 @@ int main(int argc, char **argv) {
     for (auto &joy : joys) {
         joy.init();
     }
+
+
+    bt::Blackboard bb;
+
 
     int tickCounter = 0;
 
