@@ -564,6 +564,7 @@ int main(int argc, char **argv) {
                     // Send robotcommand if skill is not running atm
                     if(!joy.skillIsRunning) {
                         auto command = makeRobotCommand(joy, *joy.msg);
+                        command.use_angle = true;
                         pub.publish(command);
                     }
                 }

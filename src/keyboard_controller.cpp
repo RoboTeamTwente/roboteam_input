@@ -324,6 +324,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & 
     r.x_vel = direction.x_vel * speed.currentVel;
     r.y_vel = direction.y_vel * speed.currentVel;
     r.w = direction.w * speed.currentW;
+    r.use_angle = true;
 
     // double velIncrement = 0.03;
     // double wIncrement = 0.03;
