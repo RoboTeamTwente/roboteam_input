@@ -2,6 +2,7 @@
 #include <cmath>
 #include <ctime>
 #include <boost/optional.hpp>
+#include <math.h>
 
 namespace b = ::boost;
 
@@ -82,7 +83,8 @@ namespace rtt {
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot.
         int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
-        bool controllerConnected = true;           // Holds if the corresponding controller is connected
+        bool controllerConnected = true;            // Holds if the corresponding controller is connected
+        float orientation = 0.0;                    // Holds the last orientation of the robot
 
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 
@@ -209,6 +211,8 @@ namespace rtt {
             speedState.y = 0;
             // Reset geneva drive
             genevaState = 0;
+            // Reset the orientation
+            orientation = 0.0;
         }
 
         void nextJoystickProfile(){
@@ -303,8 +307,8 @@ namespace rtt {
             if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){   // If DpadLeft is pressed
                 if(!joy.isPressed(btn)) {                           // Check if it was already pressed before
                     joy.genevaState--;                                  // Turn Geneva Drive to the left
-                    if(joy.genevaState < -2) {                         // Geneva state cannot go below -2 (such state does not exist)
-                        joy.genevaState = -2;                               // Set the Geneva state back to -2
+                    if(joy.genevaState < 1) {                           // Geneva state cannot go below 1 (such state does not exist)
+                        joy.genevaState = 1;                                // Set the Geneva state back to 1
                     }
                 }
                 joy.press(btn);                                     // Set button state to pressed
@@ -312,8 +316,8 @@ namespace rtt {
             if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){   // If DpadRight is pressed
                 if(!joy.isPressed(btn)) {                           // Check if it was already pressed before
                     joy.genevaState++;                                  // Turn Geneva Drive to the right
-                    if(joy.genevaState > 2) {                          // Geneva state cannot go above 2 (such state does not exist)
-                        joy.genevaState = 2;                                // Set the Geneva state back to 2
+                    if(5 < joy.genevaState) {                           // Geneva state cannot go above 5 (such state does not exist)
+                        joy.genevaState = 5;                                // Set the Geneva state back to 5
                     }
                 }
                 joy.press(btn);                                     // Set button state to pressed
@@ -390,24 +394,6 @@ namespace rtt {
 
         Xbox360Controller btn;
 
-        /* ==== Turn robot clockwise ==== */
-        if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))){
-            command.y_vel = 0.8;
-            command.w = -2;
-            return command;
-        }
-        /* ======================== */
-
-        /* ==== Turn robot counterclockwise ==== */
-        if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::B))){
-            command.y_vel = -0.8;
-            command.w = 2;
-            return command;
-        }
-        /* =============================== */
-
-
-
         /* ==== Smoothing ==== */
         /* Smooth x */
         double speedMultiplier = joy.profile.SPEED_MULTIPLIER;
@@ -428,17 +414,16 @@ namespace rtt {
         command.y_vel = joy.speedState.y;
         /* =================== */
 
-        // ==== Rotation
-        double rotationMultiplier = joy.profile.ROTATION_MULTIPLIER;// + joy.speedState.x * 2;         // maybe sqrt(x²+y²) ?
-        // If the dribbler is on, reduce the rotation speed of the robot
-        if(joy.dribblerOn) {
-            rotationMultiplier = 2.2;
-        }
-        command.w = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX)) * rotationMultiplier;
+        // ==== Orientation ==== //
+        float orientationX = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX));
+        float orientationY = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickY));
+        Vector2 orientation(orientationY, orientationX);
+        // Deadzone. Only rotate when the joystick is sufficiently pressed.
+        if(0.9 < orientation.length())
+            joy.orientation = orientation.angle() * 16;
+        command.w = joy.orientation;
 
-
-
-        /* ==== Set Kicker ==== both right bumber and right trigger work ====*/ 
+        /* ==== Set Kicker ==== both right bumber and right trigger work ====*/
         btn = Xbox360Controller::RightBumper;
         /* If not pressed yet, returns 0. If not pressed anymore, returns 1. If pressed halfway, returns -0 */
         double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
@@ -473,28 +458,25 @@ namespace rtt {
 
         // ==== Set kicker velocity
         if(command.kicker) {
-            command.kicker_vel = 2.5;
+            command.kicker_vel = 5.0;
         }
 
         /* ==== Check speed boundaries ==== */
         /* === Check x === */
         // If speed is below -SPEED_MAX
-        if(command.y_vel         < -joy.profile.SPEED_MAX                                 ) { command.y_vel = -joy.profile.SPEED_MAX; }
-            // If speed is inbetween -SPEED_MAX and SPEED_MAX
-        else if(-joy.profile.SPEED_MIN <  command.y_vel && command.y_vel < joy.profile.SPEED_MIN) { command.y_vel =  0.0; }
-            // If speed is above SPEED_MAX
-        else if(joy.profile.SPEED_MAX <  command.y_vel                                         ) { command.y_vel =  joy.profile.SPEED_MAX; }
+        if(command.y_vel < -joy.profile.SPEED_MAX) { command.y_vel = -joy.profile.SPEED_MAX; }
+        // If speed is inbetween -SPEED_MAX and SPEED_MAX
+        else if(-joy.profile.SPEED_MIN < command.y_vel && command.y_vel < joy.profile.SPEED_MIN) { command.y_vel =  0.0; }
+        // If speed is above SPEED_MAX
+        else if(joy.profile.SPEED_MAX < command.y_vel) { command.y_vel =  joy.profile.SPEED_MAX; }
 
         /* === Check y === */
         // If speed is below -SPEED_MAX
-        if(command.x_vel         < -joy.profile.SPEED_MAX                                 ) { command.x_vel = -joy.profile.SPEED_MAX; }
-            // If speed is inbetween -SPEED_MAX and SPEED_MAX
+        if(command.x_vel < -joy.profile.SPEED_MAX) { command.x_vel = -joy.profile.SPEED_MAX; }
+        // If speed is inbetween -SPEED_MAX and SPEED_MAX
         else if(-joy.profile.SPEED_MIN <  command.x_vel && command.x_vel < joy.profile.SPEED_MIN) { command.x_vel =  0.0; }
-            // If speed is above SPEED_MAX
-        else if(joy.profile.SPEED_MAX <  command.x_vel                                         ) { command.x_vel =  joy.profile.SPEED_MAX; }
-
-        /* Check rotation */
-        if      (fabs(command.w) < joy.profile.ROTATION_MIN) { command.w = 0.0; }
+        // If speed is above SPEED_MAX
+        else if(joy.profile.SPEED_MAX < command.x_vel) { command.x_vel =  joy.profile.SPEED_MAX; }
         /* ================================ */
 
         return command;
@@ -511,7 +493,6 @@ namespace rtt {
             for (auto &joy : joys)
                 if("/" + joy.input == target)
                     joy.setControllerConnected(isConnected);
-
         }
     }
 
