@@ -340,10 +340,12 @@ roboteam_msgs::RobotCommand makeRobotCommand(int const currentID, Speed const & 
 
     if (direction.doKick) {
         r.kicker = true;
+        r.kicker_forced = true;
         r.kicker_vel = speed.currentKick;
         // r.kicker_forced = true;
     } else if (direction.doChip) {
         r.chipper = true;
+        r.chipper_forced = true;
         r.chipper_vel = speed.currentKick;
         // r.chipper_forced= true;
     }

@@ -434,6 +434,7 @@ namespace rtt {
         if(getVal(msg.buttons, xbox360mapping.at(btn)) || RightTriggerVal<0.9){        // If RightBumper is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
                 command.kicker = true;                                  // If not, activate kicker
+                command.kicker_forced = true;
             joy.press(btn);                                         // Set button state to pressed
         }else                                                   // If RightBumper is not pressed
             joy.release(btn);                                       // Set button state to released
