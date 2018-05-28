@@ -210,7 +210,7 @@ namespace rtt {
             speedState.x = 0;
             speedState.y = 0;
             // Reset geneva drive
-            genevaState = 0;
+            genevaState = 3;
             // Reset the orientation
             orientation = 0.0;
         }
@@ -398,10 +398,6 @@ namespace rtt {
         /* Smooth x */
         double speedMultiplier = joy.profile.SPEED_MULTIPLIER;
         // If the dribbler is on, reduce the speed of the robot
-        if(joy.dribblerOn){
-            speedMultiplier = 0.5;
-        }
-
         double speedXdesired = speedMultiplier * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
         double speedXdiff = -joy.speedState.x + speedXdesired;
         joy.speedState.x += joy.profile.SMOOTH_FACTOR * speedXdiff;
@@ -423,23 +419,34 @@ namespace rtt {
             joy.orientation = orientation.angle() * 16;
         command.w = joy.orientation;
 
-        /* ==== Set Kicker ==== both right bumber and right trigger work ====*/
+        /* ==== Set Kicker ====*/
         btn = Xbox360Controller::RightBumper;
-        /* If not pressed yet, returns 0. If not pressed anymore, returns 1. If pressed halfway, returns -0 */
-        double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
-        // If right trigger has not been pressed since starting the program
-        if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
-			RightTriggerVal = 1;
-		}
-        if(getVal(msg.buttons, xbox360mapping.at(btn)) || RightTriggerVal<0.9){        // If RightBumper is pressed
+        if(getVal(msg.buttons, xbox360mapping.at(btn))){        // If RightBumper is pressed
             if(!joy.isPressed(btn))                                 // Check if it was already pressed before
                 command.kicker = true;                                  // If not, activate kicker
-                command.kicker_forced = true;
+                command.kicker_forced = true;							// Don't wait for ball sensor, kick immediately
             joy.press(btn);                                         // Set button state to pressed
         }else                                                   // If RightBumper is not pressed
             joy.release(btn);                                       // Set button state to released
         /* ==================== */
 
+		/* ==== Set Chipper ====*/
+		/* If not pressed yet, returns 0. If not pressed anymore, returns 1. If pressed halfway, returns -0 */
+		double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
+		// If right trigger has not been pressed since starting the program
+		if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
+			RightTriggerVal = 1;
+		}
+		if(RightTriggerVal<0.9) {        						// If RightBumper is pressed
+			command.chipper = true;                                 // activate chipper
+			command.chipper_forced = true;							// Don't wait for ball sensor, chip immediately
+		}
+		/* ==================== */
+
+		// ==== Set kicker velocity
+		if(command.kicker || command.chipper) {
+			command.kicker_vel = 2.0;
+		}
 
         // ==== Set dribbler ====
         btn = Xbox360Controller::LeftBumper;
@@ -456,11 +463,6 @@ namespace rtt {
 
         // ==== Set geneva drive state
         command.geneva_state = joy.genevaState;
-
-        // ==== Set kicker velocity
-        if(command.kicker) {
-            command.kicker_vel = 5.0;
-        }
 
         /* ==== Check speed boundaries ==== */
         /* === Check x === */

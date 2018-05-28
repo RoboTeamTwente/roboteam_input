@@ -31,10 +31,10 @@ const struct joystick_profile profile_slow {
 };
 
 const struct joystick_profile profile_quick {
-    .SMOOTH_FACTOR = 0.08,
-    .SPEED_MULTIPLIER = 2,
+    .SMOOTH_FACTOR = 1,
+    .SPEED_MULTIPLIER = 3,
     .SPEED_MIN = 0.3,
-    .SPEED_MAX = 6
+    .SPEED_MAX = 10
 };
 
 #define NUM_JOYSTICK_PROFILES 3;
