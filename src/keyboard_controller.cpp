@@ -73,8 +73,8 @@ double const MAX_VEL = 6;
 double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
 int const MAX_ID = 16;
 
-int const MIN_GENEVA_STATE = -2;
-int const MAX_GENEVA_STATE = 2;
+int const MIN_GENEVA_STATE = 1;
+int const MAX_GENEVA_STATE = 5;
 
 void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double currentW, int currentGenevaState, int currentID) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -161,7 +161,7 @@ void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double 
         int boxSize = barHeight;
         for (int i = 0; i < 5; ++i) {
             //genevaState can be -2 through 2
-            int genevaState = i - 2;
+            int genevaState = i + 1;
             SDL_Rect genevaRect;
             genevaRect.x = startX + i * (boxSize + spacing);
             genevaRect.y = startY + extraSpacing;
@@ -263,7 +263,7 @@ struct Direction {
     bool enKick = false;
     bool doChip = false;
     bool doDribble = false;
-    int currentGenevaState = 0;
+    int currentGenevaState = 3;
 
     SDL_Keycode const KEY_STRAFE_LEFT = SDLK_z;
     SDL_Keycode const KEY_STRAFE_RIGHT = SDLK_x;
