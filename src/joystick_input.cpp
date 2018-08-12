@@ -79,17 +79,18 @@ namespace rtt {
         bool skillIsRunning = false;
         b::optional<bp::child> processSkill;
 
-
+        // ==== Variables related to driving ==== //
         std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
         Vector2 speedState;                         // Holds the x-speed and y-speed of the robot.
         int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
         bool controllerConnected = true;            // Holds if the corresponding controller is connected
         float orientation = 0.0;                    // Holds the last orientation of the robot
+        float orientationOffset = 0.0;              // Holds the orientation offset
 
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 
         JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {
-            this->profile = profile_slow;
+            this->profile = profile_default;
         }
 
         void init(){
@@ -218,7 +219,7 @@ namespace rtt {
         void nextJoystickProfile(){
             profileCounter = (profileCounter + 1) % NUM_JOYSTICK_PROFILES;
             profile = joystick_profiles[profileCounter];
-            ROS_INFO_STREAM(input << " using profile " << profileCounter);
+            ROS_INFO_STREAM(input << " using profile " << profileCounter << " " << joystick_profiles[profileCounter].DESCRIPTION);
         }
 
         void setControllerConnected(bool isConnected){
@@ -341,7 +342,19 @@ namespace rtt {
         }
         /* ==== End DPad control ==== */
 
-
+        /* ==== Set rotation offset to current rotation ==== */
+        btn = Xbox360Controller::B;
+        if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){   // If LeftStick is pressed
+            if(!joy.isPressed(btn)){                                // Check if it was already pressed before
+                joy.orientationOffset += joy.orientation;
+                joy.orientation = 0;
+                ROS_INFO_STREAM(joy.input << " : orientation offset = " << (joy.orientation / (16 * M_PI)));
+            }
+            joy.press(btn);                                     // Set button state to pressed
+        }else{
+            joy.release(btn);                                   // Set button state to released
+        }
+        /* ================================================== */
 
 
         /* ==== Enable / Disable getBall on A ==== */
@@ -394,20 +407,13 @@ namespace rtt {
 
         Xbox360Controller btn;
 
-        /* ==== Smoothing ==== */
-        /* Smooth x */
-        double speedMultiplier = joy.profile.SPEED_MULTIPLIER;
-        // If the dribbler is on, reduce the speed of the robot
-        double speedXdesired = speedMultiplier * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
-        double speedXdiff = -joy.speedState.x + speedXdesired;
-        joy.speedState.x += joy.profile.SMOOTH_FACTOR * speedXdiff;
-        command.x_vel = joy.speedState.x;
-
-        /* Smooth y */
-        double speedYdesired = speedMultiplier * getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
-        double speedYdiff = -joy.speedState.y + speedYdesired;
-        joy.speedState.y += joy.profile.SMOOTH_FACTOR * speedYdiff;
-        command.y_vel = joy.speedState.y;
+        /* ==== Driving x and y ==== */
+        Vector2 driveVector;
+        driveVector.x = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY)); // Get x velocity from joystick
+        driveVector.y = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX)); // Get y velocity from joystick
+        driveVector = driveVector.rotate(joy.orientationOffset / 16);                       // Rotate velocity according to orientation offset
+        command.x_vel = joy.profile.SPEED_MAX * driveVector.x;  // Set x velocity
+        command.y_vel = joy.profile.SPEED_MAX * driveVector.y;  // Set y velocity
         /* =================== */
 
         // ==== Orientation ==== //
@@ -417,7 +423,11 @@ namespace rtt {
         // Deadzone. Only rotate when the joystick is sufficiently pressed.
         if(0.9 < orientation.length())
             joy.orientation = orientation.angle() * 16;
-        command.w = joy.orientation;
+        command.w = joy.orientation + joy.orientationOffset;    // Add offset to orientation
+        if(16 * M_PI < command.w) command.w -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+        if(command.w <-16 * M_PI) command.w += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+
+        std::cout << "orientation : " << (joy.orientation + joy.orientationOffset) << " | command.w : " << command.w << std::endl;
 
         /* ==== Set Kicker ====*/
         btn = Xbox360Controller::RightBumper;
@@ -437,7 +447,7 @@ namespace rtt {
 		if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
 			RightTriggerVal = 1;
 		}
-		if(RightTriggerVal<0.9) {        						// If RightBumper is pressed
+		if(RightTriggerVal < 0.9) {        						// If RightBumper is pressed
 			command.chipper = true;                                 // activate chipper
 			command.chipper_forced = true;							// Don't wait for ball sensor, chip immediately
 		}
