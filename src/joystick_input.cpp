@@ -411,7 +411,7 @@ namespace rtt {
         Vector2 driveVector;
         driveVector.x = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY)); // Get x velocity from joystick
         driveVector.y = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX)); // Get y velocity from joystick
-        driveVector = driveVector.rotate(joy.orientationOffset / 16);                       // Rotate velocity according to orientation offset
+        driveVector = driveVector.rotate(joy.orientation / 16);                       // Rotate velocity according to orientation offset
         command.x_vel = joy.profile.SPEED_MAX * driveVector.x;  // Set x velocity
         command.y_vel = joy.profile.SPEED_MAX * driveVector.y;  // Set y velocity
         /* =================== */
@@ -420,14 +420,26 @@ namespace rtt {
         float orientationX = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX));
         float orientationY = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickY));
         Vector2 orientation(orientationY, orientationX);
-        // Deadzone. Only rotate when the joystick is sufficiently pressed.
-        if(0.9 < orientation.length())
-            joy.orientation = orientation.angle() * 16;
-        command.w = joy.orientation + joy.orientationOffset;    // Add offset to orientation
+
+        /// these three lines below that are commented out are for absolute driving (fifa mode)
+//        if(0.9 < orientation.length())
+//            joy.orientation = orientation.angle() * 16;
+//        command.w = joy.orientation + joy.orientationOffset;    // Add offset to orientation
+
+        /// These five lines below are for callofduty controls
+        if(0.9 < fabs(orientationX));
+            joy.orientation += orientationX;
+        if(16 * M_PI < joy.orientation) joy.orientation -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+        if(joy.orientation <-16 * M_PI) joy.orientation += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+        command.w = joy.orientation;
+
+
+        /// always keep these two
         if(16 * M_PI < command.w) command.w -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
         if(command.w <-16 * M_PI) command.w += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
 
-        std::cout << "orientation : " << (joy.orientation + joy.orientationOffset) << " | command.w : " << command.w << std::endl;
+
+
 
         /* ==== Set Kicker ====*/
         btn = Xbox360Controller::RightBumper;

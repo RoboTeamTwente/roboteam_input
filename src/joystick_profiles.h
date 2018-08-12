@@ -29,7 +29,7 @@ const struct joystick_profile profile_slow {
 
 const struct joystick_profile profile_quick {
     .SPEED_MIN = 0.3,
-    .SPEED_MAX = 10,
+    .SPEED_MAX = 5.6,
 	.DESCRIPTION = "QUICK",
 };
 
