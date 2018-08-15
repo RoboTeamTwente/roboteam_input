@@ -50,7 +50,7 @@ namespace rtt {
             { Xbox360Controller::Y, 3 },    // Enables ID switching and profile switching as long as it is pressed
             { Xbox360Controller::LeftBumper   , 4  },  // Dribbler
             { Xbox360Controller::RightBumper  , 5  },  // Kicker
-            { Xbox360Controller::Back         , 6  },
+            { Xbox360Controller::Back         , 6  },  // +Y : Switch control mode (Fifa/CoD)
             { Xbox360Controller::Start        , 7  },  // +Y : Switch profile
             { Xbox360Controller::Guide        , 8  },
             { Xbox360Controller::LeftStick    , 9  },
@@ -86,6 +86,7 @@ namespace rtt {
         bool controllerConnected = true;            // Holds if the corresponding controller is connected
         float orientation = 0.0;                    // Holds the last orientation of the robot
         float orientationOffset = 0.0;              // Holds the orientation offset
+        bool useRelativeControl = true;             // Holds the control mode (relative or absolute)
 
         static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 
@@ -222,6 +223,16 @@ namespace rtt {
             ROS_INFO_STREAM(input << " using profile " << profileCounter << " " << joystick_profiles[profileCounter].DESCRIPTION);
         }
 
+        void switchControlMode(){
+            if(useRelativeControl) {
+                useRelativeControl = false;
+                ROS_INFO_STREAM(input << " using control mode absolute (Fifa)");
+            } else {
+                useRelativeControl = true;
+                ROS_INFO_STREAM(input << " using control mode relative (Call of Duty)");
+            }
+        }
+
         void setControllerConnected(bool isConnected){
             if(isConnected && !controllerConnected)
                 ROS_INFO_STREAM(input << ": Controller reconnected");
@@ -278,6 +289,17 @@ namespace rtt {
             if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){    // If Start is pressed
                 if(!joy.isPressed(btn)){                                // Check if it was already pressed before
                     joy.nextJoystickProfile();                              // If not, switch to next profile
+                }
+                joy.press(btn);                                         // Set button state to pressed
+            }else{                                                  // Else
+                joy.release(btn);                                       // Set button state to released
+            }
+
+            /* === Check if control mode has to be modified === */
+            btn = Xbox360Controller::Back;
+            if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){    // If Back is pressed
+                if(!joy.isPressed(btn)){                                // Check if it was already pressed before
+                    joy.switchControlMode();                              // If not, switch to next control mode
                 }
                 joy.press(btn);                                         // Set button state to pressed
             }else{                                                  // Else
@@ -411,7 +433,11 @@ namespace rtt {
         Vector2 driveVector;
         driveVector.x = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY)); // Get x velocity from joystick
         driveVector.y = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX)); // Get y velocity from joystick
-        driveVector = driveVector.rotate(joy.orientation / 16);                       // Rotate velocity according to orientation offset
+        if(joy.useRelativeControl){
+            driveVector = driveVector.rotate(joy.orientation / 16);                             // Rotate velocity according to orientation
+        }else{
+            driveVector = driveVector.rotate((joy.orientation + joy.orientationOffset) / 16);   // Rotate velocity according to orientation and orientation offset
+        }
         command.x_vel = joy.profile.SPEED_MAX * driveVector.x;  // Set x velocity
         command.y_vel = joy.profile.SPEED_MAX * driveVector.y;  // Set y velocity
         /* =================== */
@@ -421,25 +447,27 @@ namespace rtt {
         float orientationY = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickY));
         Vector2 orientation(orientationY, orientationX);
 
-        /// these three lines below that are commented out are for absolute driving (fifa mode)
-//        if(0.9 < orientation.length())
-//            joy.orientation = orientation.angle() * 16;
-//        command.w = joy.orientation + joy.orientationOffset;    // Add offset to orientation
-
-        /// These five lines below are for callofduty controls
-        if(0.9 < fabs(orientationX));
-            joy.orientation += orientationX;
-        if(16 * M_PI < joy.orientation) joy.orientation -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
-        if(joy.orientation <-16 * M_PI) joy.orientation += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
-        command.w = joy.orientation;
+        /// This checks which control mode to use (Fifa or CoD)
+        if(!joy.useRelativeControl) {
+            /// these three lines below that are commented out are for absolute driving (fifa mode)
+            if (0.9 < orientation.length())
+                joy.orientation = orientation.angle() * 16;
+            command.w = joy.orientation + joy.orientationOffset;    // Add offset to orientation
+        } else {
+            /// These five lines below are for callofduty controls
+            if (0.9 < fabs(orientationX));
+            joy.orientation += orientationX * joy.profile.ROTATION_MULTIPLIER;
+            if (16 * M_PI < joy.orientation)
+                joy.orientation -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+            if (joy.orientation < -16 * M_PI)
+                joy.orientation += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+            command.w = joy.orientation;
+        }
 
 
         /// always keep these two
         if(16 * M_PI < command.w) command.w -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
         if(command.w <-16 * M_PI) command.w += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
-
-
-
 
         /* ==== Set Kicker ====*/
         btn = Xbox360Controller::RightBumper;
