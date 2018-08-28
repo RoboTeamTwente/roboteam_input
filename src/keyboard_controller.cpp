@@ -6,6 +6,7 @@
 
 #include "roboteam_msgs/RobotCommand.h"
 #include "roboteam_utils/Vector2.h"
+#include "input_interface.h"
 
 namespace b = boost;
 
@@ -71,147 +72,10 @@ b::optional<int> stringToID(std::string idStr) {
 
 double const MAX_VEL = 6;
 double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
-int const MAX_ID = 16;
 
 int const MIN_GENEVA_STATE = 1;
 int const MAX_GENEVA_STATE = 5;
 
-void drawGui(SDL_Renderer *renderer, int currentKick, double currentVel, double currentW, int currentGenevaState, int currentID) {
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-
-    int offsetX = 10;
-
-    int startX = offsetX + 30;
-    int startY = 10;
-    int barHeight = 20;
-    int barWidth = 100;
-    int spacing = 20;
-
-    int pictoStartX = offsetX + 2;
-    int pictoWidth = 20;
-    int pictoEndX = pictoStartX + pictoWidth;
-
-    // Kick
-    {
-        int pictoHalfY = startY + barHeight / 2;
-        int spacing = 10;
-
-        SDL_RenderDrawLine(renderer, pictoStartX, pictoHalfY, pictoEndX, pictoHalfY);
-        SDL_RenderDrawLine(renderer, pictoEndX, startY, pictoEndX, startY + barHeight);
-
-        int boxSize = barHeight;
-
-        for (int i = 0; i < 8; ++i) {
-            SDL_Rect kickRect;
-            kickRect.x = startX + i * (boxSize + spacing);
-            kickRect.y = startY;
-            kickRect.w = boxSize;
-            kickRect.h = boxSize;
-
-            int kickPowerHere = i + 1;
-
-            if (kickPowerHere <= currentKick) {
-                SDL_RenderFillRect(renderer, &kickRect);
-            } else {
-                SDL_RenderDrawRect(renderer, &kickRect);
-            }
-        }
-    }
-
-    // Speed
-    int pictoHalfY = startY + barHeight + spacing + barHeight / 2;
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoHalfY, pictoEndX, pictoHalfY);
-    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY + barHeight + spacing);
-    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY + barHeight + spacing + barHeight);
-
-    SDL_Rect velRect;
-    velRect.x = startX;
-    velRect.y = startY + barHeight + spacing;
-    velRect.w = currentVel / MAX_VEL * barWidth;
-    velRect.h = barHeight;
-    SDL_RenderFillRect(renderer, &velRect);
-
-    // Angle Robot
-    int pictoStartY = startY + barHeight + spacing + barHeight + spacing;
-    int pictoEndY = pictoStartY + barHeight;
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoStartY);
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoEndY);
-
-    SDL_Rect wRect;
-    wRect.x = startX;
-    wRect.y = startY + barHeight + spacing + barHeight + spacing;
-    wRect.w = currentW / MAX_W * barWidth;
-    wRect.h = barHeight;
-    SDL_RenderFillRect(renderer, &wRect);
-
-    // Geneva Drive
-    {
-        int extraSpacing = barHeight + spacing + barHeight + spacing + barHeight + spacing;
-        int pictoStartY = startY + extraSpacing;
-        int pictoEndY = pictoStartY + barHeight;
-        int spacing = 10;
-
-        SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX + pictoWidth / 2, pictoEndY);
-        SDL_RenderDrawLine(renderer, pictoStartX + pictoWidth / 2, pictoEndY, pictoEndX, pictoStartY);
-        SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX, pictoStartY + 10);
-        SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX + 7, pictoStartY + 6);
-        SDL_RenderDrawLine(renderer, pictoEndX - 7, pictoStartY + 6, pictoEndX, pictoStartY);
-        SDL_RenderDrawLine(renderer, pictoEndX, pictoStartY, pictoEndX, pictoStartY + 10);
-
-        int boxSize = barHeight;
-        for (int i = 0; i < 5; ++i) {
-            //genevaState can be -2 through 2
-            int genevaState = i + 1;
-            SDL_Rect genevaRect;
-            genevaRect.x = startX + i * (boxSize + spacing);
-            genevaRect.y = startY + extraSpacing;
-            genevaRect.w = boxSize;
-            genevaRect.h = boxSize;
-            if (genevaState == currentGenevaState) {
-                SDL_RenderFillRect(renderer, &genevaRect);
-            } else {
-                SDL_RenderDrawRect(renderer, &genevaRect);
-            }
-        }
-    }
-
-    // ID
-    int extraSpacing = barHeight + spacing + barHeight + spacing + barHeight + spacing + barHeight + spacing + barHeight;
-    pictoStartY = startY + extraSpacing;
-    pictoEndY = pictoStartY + barHeight;
-
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoEndX, pictoStartY);
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoEndY);
-    SDL_RenderDrawLine(renderer, (pictoStartX + pictoEndX) / 2, pictoStartY, (pictoStartX + pictoEndX) / 2, pictoEndY);
-
-    int boxSize = barHeight;
-    int boxSpacing = spacing;
-    int boxesPerRow = 4;
-    int rows = 4;
-
-    int exclamationSpacing = 5;
-    int exclamationWidth = 5;
-    int exclamationBarHeight = 12;
-    int exclamationDotSize = 3;
-
-    for (int y = 0; y < rows; ++y) {
-        for (int x = 0; x < boxesPerRow; ++x) {
-            int id = y * boxesPerRow + x;
-
-            SDL_Rect outlineRect;
-            outlineRect.x = startX + x * (boxSize + boxSpacing);
-            outlineRect.y = y * (boxSize + boxSpacing) + (startY + extraSpacing);
-            outlineRect.w = boxSize;
-            outlineRect.h = boxSize;
-
-            if (id <= currentID) {
-                SDL_RenderFillRect(renderer, &outlineRect);
-            } else {
-                SDL_RenderDrawRect(renderer, &outlineRect);
-            }
-        }
-    }
-}
 
 struct Direction {
     void handleEvent(SDL_Event const & e) {
@@ -405,6 +269,8 @@ Controls:10
     SDL_Window* window;
     SDL_Renderer* renderer;
 
+    InputInterface interface(renderer);
+
     if (SDL_Init( SDL_INIT_EVERYTHING ) != 0) {
         // Something failed, print error and exit.
         std::cout << " Failed to initialize SDL : " << SDL_GetError() << std::endl;
@@ -505,7 +371,7 @@ Controls:10
         SDL_RenderClear(renderer);
 
         // Draw the gui and refresh the screen
-        drawGui(renderer, speed.currentKick, speed.currentVel, speed.currentW, direction.currentGenevaState, currentID);
+        interface.drawGui(renderer, speed.currentKick, speed.currentVel, speed.currentW, direction.currentGenevaState, currentID);
         SDL_RenderPresent(renderer);
     }
 
