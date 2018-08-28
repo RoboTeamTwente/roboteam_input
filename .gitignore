@@ -7,3 +7,6 @@
 
 .idea/
 cmake-build-debug/
+
+# Mac OS files
+.DS_Store
