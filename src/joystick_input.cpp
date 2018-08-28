@@ -436,7 +436,7 @@ namespace rtt {
         if(joy.useRelativeControl){
             driveVector = driveVector.rotate(joy.orientation / 16);                             // Rotate velocity according to orientation
         }else{
-            driveVector = driveVector.rotate((joy.orientation + joy.orientationOffset) / 16);   // Rotate velocity according to orientation and orientation offset
+            driveVector = driveVector.rotate((joy.orientationOffset) / 16);   // Rotate velocity according to orientation and orientation offset
         }
         command.x_vel = joy.profile.SPEED_MAX * driveVector.x;  // Set x velocity
         command.y_vel = joy.profile.SPEED_MAX * driveVector.y;  // Set y velocity
