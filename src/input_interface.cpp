@@ -1,6 +1,6 @@
 //
 // Created by mrlukasbos on 8/28/18.
-// This class draws a visul
+// This class draws a visulization of the parameters used to manually control a robot
 //
 
 #include "input_interface.h"
@@ -14,24 +14,20 @@ void InputInterface::drawGui(SDL_Renderer * renderer, int kickPower, double velo
     SDL_SetRenderDrawColor(renderer, BACKGROUND_COLOR.r, BACKGROUND_COLOR.g, BACKGROUND_COLOR.b, BACKGROUND_COLOR.a);
     SDL_RenderClear(renderer);
 
-    SDL_SetRenderDrawColor(renderer, ITEM_COLOR.r, ITEM_COLOR.g, ITEM_COLOR.b, ITEM_COLOR.a);
+    // initialize the font
+    font = loadFont();
 
+    // set color of the drawing items
+    SDL_SetRenderDrawColor(renderer, ITEM_COLOR.r, ITEM_COLOR.g, ITEM_COLOR.b, ITEM_COLOR.a);
     showKickPower(kickPower);
     showAngle(angularVelocity);
     showGeneva(genevaState);
     showVelocity(velocity);
     showId(id);
 
-    // initialize the font
-    TTF_Font * font = loadFont();
-drawText(font, "hallo", 20, 20, 20);
-drawText(font, "doei", 120, 20, 20);
-
     TTF_CloseFont(font);
     TTF_Quit();
-
     SDL_RenderPresent(renderer);
-
 }
 
 TTF_Font* InputInterface::loadFont() {
@@ -45,7 +41,7 @@ TTF_Font* InputInterface::loadFont() {
      }
 }
 
-void InputInterface::drawText(TTF_Font * font, std::string text, int x, int y, int size) {
+void InputInterface::drawText(std::string text, int x, int y, int size) {
   SDL_Color textColor = TEXT_COLOR;
 
   SDL_Surface* surfaceMessage = TTF_RenderText_Solid(font, text.c_str(), textColor);
@@ -90,18 +86,14 @@ void InputInterface::showAngle(double currentAngularVelocity) {
 }
 
 void InputInterface::showKickPower(int kickPower) {
-    int pictoHalfY = startY + barHeight / 2;
+    drawText("Kickpower (keypad 4-6)", 10, 40, 14);
+
     int spacing = 10;
-
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoHalfY, pictoEndX, pictoHalfY);
-    SDL_RenderDrawLine(renderer, pictoEndX, startY, pictoEndX, startY + barHeight);
-
     int boxSize = barHeight;
-
     for (int i = 0; i < 8; ++i) {
         SDL_Rect kickRect;
-        kickRect.x = startX + i * (boxSize + spacing);
-        kickRect.y = startY;
+        kickRect.x = 10 + i * (boxSize + spacing);
+        kickRect.y = 60;
         kickRect.w = boxSize;
         kickRect.h = boxSize;
 
@@ -140,34 +132,5 @@ void InputInterface::showGeneva(int currentGenevaState) {
 }
 
 void InputInterface::showId(int id) {
-    int extraSpacing = barHeight + spacing + barHeight + spacing + barHeight + spacing + barHeight + spacing + barHeight;
-    pictoStartY = startY + extraSpacing;
-    pictoEndY = pictoStartY + barHeight;
-
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoEndX, pictoStartY);
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoEndY);
-    SDL_RenderDrawLine(renderer, (pictoStartX + pictoEndX) / 2, pictoStartY, (pictoStartX + pictoEndX) / 2, pictoEndY);
-
-    int boxSize = barHeight;
-    int boxSpacing = spacing;
-    int boxesPerRow = 4;
-    int rows = 4;
-
-    for (int y = 0; y < rows; ++y) {
-        for (int x = 0; x < boxesPerRow; ++x) {
-            int _id = y * boxesPerRow + x;
-
-            SDL_Rect outlineRect;
-            outlineRect.x = startX + x * (boxSize + boxSpacing);
-            outlineRect.y = y * (boxSize + boxSpacing) + (startY + extraSpacing);
-            outlineRect.w = boxSize;
-            outlineRect.h = boxSize;
-
-            if (_id <= id) {
-                SDL_RenderFillRect(renderer, &outlineRect);
-            } else {
-                SDL_RenderDrawRect(renderer, &outlineRect);
-            }
-        }
-    }
+    drawText("Showing data for id: " + std::to_string(id), 10, 10, 14);
 }

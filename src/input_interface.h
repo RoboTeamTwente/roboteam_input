@@ -44,8 +44,9 @@ private:
     void showId(int id);
 
     // Utilities
+    TTF_Font * font = nullptr;
     TTF_Font* loadFont();
-    void drawText(TTF_Font * font, std::string text, int x, int y, int size);
+    void drawText(std::string text, int x, int y, int size);
 
 public:
     explicit InputInterface();
