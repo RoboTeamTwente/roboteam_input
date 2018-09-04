@@ -47,6 +47,7 @@ private:
     TTF_Font * font = nullptr;
     TTF_Font* loadFont();
     void drawText(std::string text, int x, int y, int size);
+    int drawHeight = 10;
 
 public:
     explicit InputInterface();

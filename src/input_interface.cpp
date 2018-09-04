@@ -19,11 +19,13 @@ void InputInterface::drawGui(SDL_Renderer * renderer, int kickPower, double velo
 
     // set color of the drawing items
     SDL_SetRenderDrawColor(renderer, ITEM_COLOR.r, ITEM_COLOR.g, ITEM_COLOR.b, ITEM_COLOR.a);
-    showKickPower(kickPower);
-    showAngle(angularVelocity);
-    showGeneva(genevaState);
-    showVelocity(velocity);
+
+    drawHeight = 0;
     showId(id);
+    showVelocity(velocity);
+    showAngle(angularVelocity);
+    showKickPower(kickPower);
+    showGeneva(genevaState);
 
     TTF_CloseFont(font);
     TTF_Quit();
@@ -43,60 +45,50 @@ TTF_Font* InputInterface::loadFont() {
 
 void InputInterface::drawText(std::string text, int x, int y, int size) {
   SDL_Color textColor = TEXT_COLOR;
-
   SDL_Surface* surfaceMessage = TTF_RenderText_Solid(font, text.c_str(), textColor);
   if(surfaceMessage == NULL) {
      printf("Unable to render text surface: %s\n",TTF_GetError());
   }
   SDL_Texture* message = SDL_CreateTextureFromSurface(renderer,surfaceMessage);
   SDL_FreeSurface(surfaceMessage);
-
   SDL_Rect textRect{x, y, surfaceMessage->w, surfaceMessage->h};
-
- SDL_RenderCopy(renderer,message,NULL,&textRect);
- SDL_DestroyTexture(message);
+  SDL_RenderCopy(renderer,message,NULL,&textRect);
+  SDL_DestroyTexture(message);
 }
 
 void InputInterface::showVelocity(double currentVelocity) {
-    int pictoHalfY = startY + barHeight + spacing + barHeight / 2;
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoHalfY, pictoEndX, pictoHalfY);
-    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY + barHeight + spacing);
-    SDL_RenderDrawLine(renderer, pictoEndX, pictoHalfY, pictoStartX + pictoWidth / 2, startY + barHeight + spacing + barHeight);
-
+    drawText("Velocity (keypad 5-7)", 10, drawHeight, 14);
     SDL_Rect velRect;
-    velRect.x = startX;
-    velRect.y = startY + barHeight + spacing;
+    velRect.x = 10;
+    velRect.y = drawHeight + spacing;
     velRect.w = currentVelocity / MAX_VEL * barWidth;
     velRect.h = barHeight;
     SDL_RenderFillRect(renderer, &velRect);
+    drawHeight+= 80;
 }
 
 void InputInterface::showAngle(double currentAngularVelocity) {
-    int pictoStartY = startY + barHeight + spacing + barHeight + spacing;
-    int pictoEndY = pictoStartY + barHeight;
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoStartY);
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoEndY, pictoEndX, pictoEndY);
-
+    drawText("Angular velocity", 10, drawHeight, 14);
     SDL_Rect wRect;
-    wRect.x = startX;
-    wRect.y = startY + barHeight + spacing + barHeight + spacing;
+    wRect.x = 10;
+    wRect.y = drawHeight + spacing;
     wRect.w = currentAngularVelocity / MAX_ANGULAR_VELOCITY * barWidth;
     wRect.h = barHeight;
     SDL_RenderFillRect(renderer, &wRect);
+    drawHeight+=80;
 }
 
 void InputInterface::showKickPower(int kickPower) {
-    drawText("Kickpower (keypad 4-6)", 10, 40, 14);
+    drawText("Kickpower (keypad 4-6)", 10, drawHeight, 14);
 
     int spacing = 10;
     int boxSize = barHeight;
     for (int i = 0; i < 8; ++i) {
         SDL_Rect kickRect;
         kickRect.x = 10 + i * (boxSize + spacing);
-        kickRect.y = 60;
+        kickRect.y = drawHeight+spacing;
         kickRect.w = boxSize;
         kickRect.h = boxSize;
-
         int kickPowerHere = i + 1;
         if (kickPowerHere <= kickPower) {
             SDL_RenderFillRect(renderer, &kickRect);
@@ -104,15 +96,11 @@ void InputInterface::showKickPower(int kickPower) {
             SDL_RenderDrawRect(renderer, &kickRect);
         }
     }
+    drawHeight += 100;
 }
 
 void InputInterface::showGeneva(int currentGenevaState) {
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX + pictoWidth / 2, pictoEndY);
-    SDL_RenderDrawLine(renderer, pictoStartX + pictoWidth / 2, pictoEndY, pictoEndX, pictoStartY);
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX, pictoStartY + 10);
-    SDL_RenderDrawLine(renderer, pictoStartX, pictoStartY, pictoStartX + 7, pictoStartY + 6);
-    SDL_RenderDrawLine(renderer, pictoEndX - 7, pictoStartY + 6, pictoEndX, pictoStartY);
-    SDL_RenderDrawLine(renderer, pictoEndX, pictoStartY, pictoEndX, pictoStartY + 10);
+    drawText("Geneva (Pageup/Pagedown)", 10, drawHeight, 14);
 
     int boxSize = barHeight;
     for (int i = 0; i < 5; ++i) {
@@ -120,7 +108,7 @@ void InputInterface::showGeneva(int currentGenevaState) {
         int genevaState = i + 1;
         SDL_Rect genevaRect;
         genevaRect.x = startX + i * (boxSize + spacing);
-        genevaRect.y = startY + extraSpacing;
+        genevaRect.y = drawHeight + spacing;
         genevaRect.w = boxSize;
         genevaRect.h = boxSize;
         if (genevaState == currentGenevaState) {
@@ -129,8 +117,11 @@ void InputInterface::showGeneva(int currentGenevaState) {
             SDL_RenderDrawRect(renderer, &genevaRect);
         }
     }
+    drawHeight += 100;
+
 }
 
 void InputInterface::showId(int id) {
-    drawText("Showing data for id: " + std::to_string(id), 10, 10, 14);
+    drawText("Showing data for id: " + std::to_string(id), 10, drawHeight, 14);
+    drawHeight+=20;
 }
