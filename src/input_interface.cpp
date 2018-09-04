@@ -3,7 +3,6 @@
 //
 
 #include "input_interface.h"
-#include <SDL.h>
 
 InputInterface::InputInterface(SDL_Renderer * renderer) : renderer(renderer){}
 
@@ -62,7 +61,6 @@ void InputInterface::showKickPower(int kickPower) {
         kickRect.h = boxSize;
 
         int kickPowerHere = i + 1;
-
         if (kickPowerHere <= kickPower) {
             SDL_RenderFillRect(renderer, &kickRect);
         } else {
@@ -128,5 +126,3 @@ void InputInterface::showId(int id) {
         }
     }
 }
-
-

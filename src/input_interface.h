@@ -16,15 +16,12 @@ private:
     const int MIN_GENEVA_STATE = 1;
     const int MAX_GENEVA_STATE = 5;
     SDL_Renderer *renderer = nullptr;
-
     int offsetX = 10;
     int startX = offsetX + 30;
     int startY = 10;
     int barHeight = 20;
     int barWidth = 100;
     int spacing = 20;
-
-
     int pictoStartX = offsetX + 2;
     int pictoWidth = 20;
     int pictoEndX = pictoStartX + pictoWidth;

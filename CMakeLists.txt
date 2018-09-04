@@ -57,8 +57,6 @@ include_directories(
 
 
 add_executable(joystick_input
-        src/input_interface.h
-        src/input_interface.cpp
         src/joystick_input.cpp
         src/joystick_enums.h
         src/joystick_profiles.h)
@@ -69,17 +67,17 @@ if (${SDL2_FOUND})
 
     MESSAGE("-- Building keyboard controller with SDL2")
 
-    add_executable(keyboard_controller 
+    add_executable(keyboard_controller
         src/keyboard_controller.cpp
             src/input_interface.h
             src/input_interface.cpp
         )
-    target_link_libraries( keyboard_controller 
+    target_link_libraries( keyboard_controller
         ${catkin_LIBRARIES}
         ${SDL2_LIBRARY}
         )
-    add_dependencies(keyboard_controller 
-        ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+    add_dependencies(keyboard_controller
+        ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
         )
 
