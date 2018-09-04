@@ -4,8 +4,6 @@
 //
 
 #include "input_interface.h"
-#include <iostream>
-#include <SDL_ttf.h>
 
 InputInterface::InputInterface() : renderer(nullptr){}
 
@@ -24,31 +22,43 @@ void InputInterface::drawGui(SDL_Renderer * renderer, int kickPower, double velo
     showVelocity(velocity);
     showId(id);
 
-    if (TTF_Init() < 0) {
-        std::cout << "ttf library not initialized!!";
-    } else {
-    TTF_Font* font = TTF_OpenFont("/usr/share/fonts/truetype/freefont/FreeMono.ttf",16);
-       if(font == NULL) {
-           printf("TTF_OpenFont: %s\n",TTF_GetError());
-       }
-       SDL_Color textColor = {255,255,255};
-       SDL_Surface* surfaceMessage = TTF_RenderText_Solid(font,"test!",textColor);
-       if(surfaceMessage == NULL) {
-           printf("Unable to render text surface: %s\n",TTF_GetError());
-       }
-       SDL_Texture* message = SDL_CreateTextureFromSurface(renderer,surfaceMessage);
-       SDL_FreeSurface(surfaceMessage);
-       int text_width = surfaceMessage->w;
-       int text_height = surfaceMessage->h;
-       SDL_Rect textRect{100,100,text_width,text_height};
+    // initialize the font
+    TTF_Font * font = loadFont();
+drawText(font, "hallo", 20, 20, 20);
+drawText(font, "doei", 120, 20, 20);
 
-       SDL_RenderCopy(renderer,message,NULL,&textRect);
-        SDL_DestroyTexture(message);
-        TTF_CloseFont(font);
-        TTF_Quit();
-    }
+    TTF_CloseFont(font);
+    TTF_Quit();
+
     SDL_RenderPresent(renderer);
 
+}
+
+TTF_Font* InputInterface::loadFont() {
+  if (TTF_Init() < 0) {
+      std::cout << "ttf library not initialized!!";
+  }
+
+  TTF_Font* font = TTF_OpenFont("/usr/share/fonts/truetype/freefont/FreeMono.ttf",16);
+     if(font == NULL) {
+         printf("TTF_OpenFont: %s\n",TTF_GetError());
+     }
+}
+
+void InputInterface::drawText(TTF_Font * font, std::string text, int x, int y, int size) {
+  SDL_Color textColor = TEXT_COLOR;
+
+  SDL_Surface* surfaceMessage = TTF_RenderText_Solid(font, text.c_str(), textColor);
+  if(surfaceMessage == NULL) {
+     printf("Unable to render text surface: %s\n",TTF_GetError());
+  }
+  SDL_Texture* message = SDL_CreateTextureFromSurface(renderer,surfaceMessage);
+  SDL_FreeSurface(surfaceMessage);
+
+  SDL_Rect textRect{x, y, surfaceMessage->w, surfaceMessage->h};
+
+ SDL_RenderCopy(renderer,message,NULL,&textRect);
+ SDL_DestroyTexture(message);
 }
 
 void InputInterface::showVelocity(double currentVelocity) {

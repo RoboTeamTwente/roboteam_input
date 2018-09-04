@@ -7,6 +7,8 @@
 
 #include <math.h>
 #include <SDL.h>
+#include <iostream>
+#include <SDL_ttf.h>
 
 class InputInterface {
 private:
@@ -32,6 +34,7 @@ private:
     // Colors
     SDL_Color BACKGROUND_COLOR {255, 0, 0, 255}; // Red
     SDL_Color ITEM_COLOR { 255, 255, 255, 255 }; // White
+    SDL_Color TEXT_COLOR { 255, 255, 255, 255 }; // White
 
     // Functions
     void showVelocity(double velocity);
@@ -39,6 +42,10 @@ private:
     void showKickPower(int kickPower);
     void showGeneva(int currentGenevaState);
     void showId(int id);
+
+    // Utilities
+    TTF_Font* loadFont();
+    void drawText(TTF_Font * font, std::string text, int x, int y, int size);
 
 public:
     explicit InputInterface();
