@@ -1,12 +1,21 @@
 //
 // Created by mrlukasbos on 8/28/18.
+// This class draws a visul
 //
 
 #include "input_interface.h"
+#include <iostream>
+#include <SDL_ttf.h>
 
-InputInterface::InputInterface(SDL_Renderer * renderer) : renderer(renderer){}
+InputInterface::InputInterface() : renderer(nullptr){}
 
 void InputInterface::drawGui(SDL_Renderer * renderer, int kickPower, double velocity, double angularVelocity, int genevaState, int id) {
+    this->renderer = renderer;
+
+    // set background color
+    SDL_SetRenderDrawColor(renderer, BACKGROUND_COLOR.r, BACKGROUND_COLOR.g, BACKGROUND_COLOR.b, BACKGROUND_COLOR.a);
+    SDL_RenderClear(renderer);
+
     SDL_SetRenderDrawColor(renderer, ITEM_COLOR.r, ITEM_COLOR.g, ITEM_COLOR.b, ITEM_COLOR.a);
 
     showKickPower(kickPower);
@@ -14,6 +23,32 @@ void InputInterface::drawGui(SDL_Renderer * renderer, int kickPower, double velo
     showGeneva(genevaState);
     showVelocity(velocity);
     showId(id);
+
+    if (TTF_Init() < 0) {
+        std::cout << "ttf library not initialized!!";
+    } else {
+    TTF_Font* font = TTF_OpenFont("/usr/share/fonts/truetype/freefont/FreeMono.ttf",16);
+       if(font == NULL) {
+           printf("TTF_OpenFont: %s\n",TTF_GetError());
+       }
+       SDL_Color textColor = {255,255,255};
+       SDL_Surface* surfaceMessage = TTF_RenderText_Solid(font,"test!",textColor);
+       if(surfaceMessage == NULL) {
+           printf("Unable to render text surface: %s\n",TTF_GetError());
+       }
+       SDL_Texture* message = SDL_CreateTextureFromSurface(renderer,surfaceMessage);
+       SDL_FreeSurface(surfaceMessage);
+       int text_width = surfaceMessage->w;
+       int text_height = surfaceMessage->h;
+       SDL_Rect textRect{100,100,text_width,text_height};
+
+       SDL_RenderCopy(renderer,message,NULL,&textRect);
+        SDL_DestroyTexture(message);
+        TTF_CloseFont(font);
+        TTF_Quit();
+    }
+    SDL_RenderPresent(renderer);
+
 }
 
 void InputInterface::showVelocity(double currentVelocity) {

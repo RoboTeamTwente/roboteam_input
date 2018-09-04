@@ -3,15 +3,8 @@
 #include <ctime>
 #include <boost/optional.hpp>
 #include <math.h>
-
-namespace b = ::boost;
-
 #include <boost/process.hpp>
-
-namespace bp = ::boost::process;
-
 #include <map>
-
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
 #include "diagnostic_msgs/DiagnosticArray.h"    // Used for listening to Joy on /diagnostics
@@ -25,6 +18,9 @@ namespace bp = ::boost::process;
 
 #include "joystick_enums.h"
 #include "joystick_profiles.h"
+
+namespace b = ::boost;
+namespace bp = ::boost::process;
 
 namespace rtt {
 
@@ -536,26 +532,24 @@ namespace rtt {
     }
 
     void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr& cmd){
-
         int size = cmd->status.size();
-        for(int i = 0; i < size; i++){
-
+        for(int i = 0; i < size; i++) {
             std::string target = cmd->status.at(i).values.at(0).value;
             bool isConnected = cmd->status.at(i).message == "OK";
 
-            for (auto &joy : joys)
-                if("/" + joy.input == target)
+            for (auto &joy : joys) {
+                if("/" + joy.input == target) {
                     joy.setControllerConnected(isConnected);
+                }
+            }
         }
     }
-
 } // rtt
 
 
 
 int main(int argc, char **argv) {
     using namespace rtt;
-
 
     ros::init(argc, argv, "joystick_controller");
     ros::NodeHandle n;
@@ -569,8 +563,8 @@ int main(int argc, char **argv) {
     ros::Rate fps(60);
 
     ROS_INFO_STREAM("Initializing NUM_CONTROLLERS controller(s)");
-    for (auto &joy : joys) {
-        joy.init();
+    for (auto &joystick : joys) {
+        joystick.init();
     }
 
     int tickCounter = 0;
@@ -582,22 +576,22 @@ int main(int argc, char **argv) {
         // Handle subscriber callbacks
         ros::spinOnce();
 
-        for (auto &joy : joys) {
+        for (auto &joystick : joys) {
 
             // If autoPlay is off, or timeout not yet reached
-            if(!joy.autoPlayOn || joy.getTimer() <3 - 3 + TIMEOUT_SECONDS) { // #Liefde #LoveLife #RoboTeamLife
+            if(!joystick.autoPlayOn || joystick.getTimer() < TIMEOUT_SECONDS) {
 
                 // Stop autoplay if needed
-                joy.stopAutoPlay();
+                joystick.stopAutoPlay();
 
                 // If joystick message received
-                if(joy.msg) {
+                if(joystick.msg) {
                     // HandleButtons, such as ID switching
-                    handleButtons(joy, *joy.msg);
+                    handleButtons(joystick, *joystick.msg);
 
                     // Send robotcommand if skill is not running atm
-                    if(!joy.skillIsRunning) {
-                        auto command = makeRobotCommand(joy, *joy.msg);
+                    if(!joystick.skillIsRunning) {
+                        auto command = makeRobotCommand(joystick, *joystick.msg);
                         command.use_angle = true;
                         pub.publish(command);
                     }
@@ -607,7 +601,7 @@ int main(int argc, char **argv) {
             // If timeout reached
             {
                 // Start autoplay if needed
-                joy.startAutoPlay();
+                joystick.startAutoPlay();
             }
         }
         fps.sleep();

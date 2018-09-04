@@ -18,11 +18,11 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## Need to install:
-# sudo apt-get install libsdl2-dev
+# sudo apt-get install libsdl2-dev libsdl2-ttf-dev
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(SDL2)
-include_directories(${SDL2_INCLUDE_DIR})
-
+find_package(SDL2TTF)
+include_directories(${SDL2_INCLUDE_DIR} ${SDL2TTF_INCLUDE_DIR})
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -64,6 +64,7 @@ target_link_libraries(joystick_input ${catkin_LIBRARIES})
 add_dependencies(joystick_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 if (${SDL2_FOUND})
+  if (${SDL2TTF_FOUND})
 
     MESSAGE("-- Building keyboard controller with SDL2")
 
@@ -75,11 +76,17 @@ if (${SDL2_FOUND})
     target_link_libraries( keyboard_controller
         ${catkin_LIBRARIES}
         ${SDL2_LIBRARY}
+        ${SDL2TTF_LIBRARY}
+
         )
     add_dependencies(keyboard_controller
         ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
         )
+else (${SDL2TTF_FOUND})
+MESSAGE("-- SDL2TTF not found, so cannot build keyboard_controller! Have you installed SDL2TTF?")
+
+endif(${SDL2TTF_FOUND})
 
 else (${SDL2_FOUND})
 

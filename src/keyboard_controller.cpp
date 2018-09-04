@@ -8,6 +8,7 @@
 #include "input_interface.h"
 
 namespace b = boost;
+InputInterface interface = InputInterface();
 
 namespace {
   b::optional<std::string> getCmdOption(const std::vector<std::string>& args, const std::string & option) {
@@ -224,10 +225,8 @@ namespace {
               return true;
           }
       }
-
       return false;
   }
-
 }
 
 int main(int argc, char* argv[]) {
@@ -266,7 +265,6 @@ Controls:10
     SDL_Window* window;
     SDL_Renderer* renderer;
 
-    InputInterface interface(renderer);
 
     if (SDL_Init( SDL_INIT_EVERYTHING ) != 0) {
         // Something failed, print error and exit.
@@ -287,12 +285,6 @@ Controls:10
         std::cout << "Failed to create renderer : " << SDL_GetError();
         return -1;
     }
-
-    // Render red
-    SDL_RenderSetLogicalSize( renderer, sizeX, sizeY );
-    SDL_SetRenderDrawColor( renderer, 255, 0, 0, 255 );
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
 
     // Control variables
     auto robotIDAllKeys = robotIDNumKeys;
@@ -324,20 +316,16 @@ Controls:10
 
     while(!quit && ros::ok()) {
         while(SDL_PollEvent(&e) != 0) {
-            if ( e.type == SDL_QUIT ) {
+            if (e.type == SDL_QUIT) {
                 quit = true;
             } else if (e.type == SDL_KEYDOWN) {
                 auto key = e.key.keysym.sym;
 
-                // Handle ctrl-c
-                if (isCtrlPressed(e) && key == SDLK_c) {
-                    quit = true;
-                }
-
-                // Handle escape & q
-                if (key == SDLK_ESCAPE || key == SDLK_q) {
-                    quit = true;
-                }
+                // quit when ctrc-c escape or q is pressed.
+                bool ctrlCIsPressed = isCtrlPressed(e) && key == SDLK_c;
+                bool escapeIsPressed = key == SDLK_ESCAPE;
+                bool qIsPressed = key == SDLK_q;
+                quit = (ctrlCIsPressed || escapeIsPressed || qIsPressed);
 
                 // Handle ID switching
                 if (std::find(robotIDAllKeys.begin(), robotIDAllKeys.end(), key) != robotIDAllKeys.end()) {
@@ -363,13 +351,9 @@ Controls:10
         ros::spinOnce();
         fpsRate.sleep();
 
-        // Make the screen red
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
         // Draw the gui and refresh the screen
         interface.drawGui(renderer, speed.currentKick, speed.currentVel, speed.currentW, direction.currentGenevaState, currentID);
-        SDL_RenderPresent(renderer);
+
     }
 
     return 0;

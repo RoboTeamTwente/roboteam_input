@@ -30,9 +30,8 @@ private:
     int pictoEndY = pictoStartY + barHeight;
 
     // Colors
-    struct Color { uint8_t r, g, b, a; };
-    Color BACKGROUND_COLOR {0, 0, 0, 255}; // Black
-    Color ITEM_COLOR { 255, 255, 255, 255 }; // White
+    SDL_Color BACKGROUND_COLOR {255, 0, 0, 255}; // Red
+    SDL_Color ITEM_COLOR { 255, 255, 255, 255 }; // White
 
     // Functions
     void showVelocity(double velocity);
@@ -42,7 +41,7 @@ private:
     void showId(int id);
 
 public:
-    explicit InputInterface(SDL_Renderer * renderer);
+    explicit InputInterface();
     void drawGui(SDL_Renderer * renderer, int kickPower, double currentVelocity, double currentAngularVelocity, int currentGenevaState, int currentId);
 };
 
