@@ -18,23 +18,18 @@ private:
     const int MIN_GENEVA_STATE = 1;
     const int MAX_GENEVA_STATE = 5;
     SDL_Renderer *renderer = nullptr;
-    int offsetX = 10;
-    int startX = offsetX + 30;
-    int startY = 10;
-    int barHeight = 20;
-    int barWidth = 100;
-    int spacing = 20;
-    int pictoStartX = offsetX + 2;
-    int pictoWidth = 20;
-    int pictoEndX = pictoStartX + pictoWidth;
-    int extraSpacing = barHeight + spacing + barHeight + spacing + barHeight + spacing;
-    int pictoStartY = startY + extraSpacing;
-    int pictoEndY = pictoStartY + barHeight;
+
+    // Margins
+    const int OFFSET_X = 10;
+    const int BAR_HEIGHT = 20;
+    const int BAR_WIDTH = 200;
+    const int SPACING = 20;
+    int drawHeight = 0;
 
     // Colors
-    SDL_Color BACKGROUND_COLOR {255, 0, 0, 255}; // Red
-    SDL_Color ITEM_COLOR { 255, 255, 255, 255 }; // White
-    SDL_Color TEXT_COLOR { 255, 255, 255, 255 }; // White
+    const SDL_Color BACKGROUND_COLOR {255, 0, 0, 255}; // Red
+    const SDL_Color ITEM_COLOR { 255, 255, 255, 255 }; // White
+    const SDL_Color TEXT_COLOR { 255, 255, 255, 255 }; // White
 
     // Functions
     void showVelocity(double velocity);
@@ -45,12 +40,12 @@ private:
 
     // Utilities
     TTF_Font * font = nullptr;
-    TTF_Font* loadFont();
-    void drawText(std::string text, int x, int y, int size);
-    int drawHeight = 10;
+    void drawText(std::string text, int x, int y);
+    SDL_Rect drawRect(int x, int y, int w, int h, bool isFilled);
 
 public:
     explicit InputInterface();
+    ~InputInterface();
     void drawGui(SDL_Renderer * renderer, int kickPower, double currentVelocity, double currentAngularVelocity, int currentGenevaState, int currentId);
 };
 
