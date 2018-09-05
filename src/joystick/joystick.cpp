@@ -15,7 +15,6 @@
 #include "roboteam_msgs/GeometryData.h"
 #include "roboteam_utils/Vector2.h"
 #include "roboteam_utils/world_analysis.h"
-
 #include "joystick_enums.h"
 #include "joystick_profiles.h"
 

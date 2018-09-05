@@ -1,6 +1,6 @@
 //
 // Created by mrlukasbos on 8/28/18.
-// This class draws a visulization of the parameters used to manually control a robot
+// This class draws a visualization of the parameters used to manually control a robot
 //
 
 #include "input_interface.h"

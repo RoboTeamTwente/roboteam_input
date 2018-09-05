@@ -56,30 +56,32 @@ include_directories(
 
 
 
-add_executable(joystick_input
-        src/joystick_input.cpp
-        src/joystick_enums.h
-        src/joystick_profiles.h)
-target_link_libraries(joystick_input ${catkin_LIBRARIES})
-add_dependencies(joystick_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(joystick
+        src/joystick/joystick.cpp
+        src/joystick/joystick_enums.h
+        src/joystick/joystick_profiles.h)
+target_link_libraries(joystick ${catkin_LIBRARIES})
+add_dependencies(joystick ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 if (${SDL2_FOUND})
   if (${SDL2TTF_FOUND})
 
     MESSAGE("-- Building keyboard controller with SDL2")
 
-    add_executable(keyboard_controller
-        src/keyboard_controller.cpp
-            src/input_interface.h
-            src/input_interface.cpp
+    add_executable(keyboard
+        src/keyboard/keyboard.cpp
+        src/keyboard/keyboard_manager.h
+        src/keyboard/keyboard_manager.cpp
+        src/input_interface.h
+        src/input_interface.cpp
         )
-    target_link_libraries( keyboard_controller
+    target_link_libraries( keyboard
         ${catkin_LIBRARIES}
         ${SDL2_LIBRARY}
         ${SDL2TTF_LIBRARY}
 
         )
-    add_dependencies(keyboard_controller
+    add_dependencies(keyboard
         ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
         )
