@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
         fpsRate.sleep();
 
         // Draw the gui and refresh the screen
-        interface.drawGui(keyManager.currentKick, keyManager.currentVel, keyManager.currentW, keyManager.currentGenevaState, keyManager.currentId);
+        interface.drawGui(keyManager.currentKick, keyManager.currentVel, keyManager.currentAngularVelocity, keyManager.currentGenevaState, keyManager.currentId);
     }
     return 0;
 }

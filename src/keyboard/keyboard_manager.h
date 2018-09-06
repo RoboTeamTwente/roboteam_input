@@ -22,7 +22,7 @@ public:
 // TODO make these variables private and only accesible using getters/setters
   int currentGenevaState = 3;
   double currentVel = 1;
-  double currentW = 2;
+  double currentAngularVelocity = 2;
   int currentKick = 1;
   int currentId = 0;
 
@@ -36,16 +36,18 @@ private:
   // robot Values
   int x_vel = 0;
   int y_vel = 0;
-  double w = 18;
+  double w = 0;
+  double rotation = 0;
   bool doKick = false;
   bool enKick = false;
   bool doChip = false;
   bool doDribble = false;
   int orientationOffset = 0;
-
+  double rotationSpeed = 1;
   double const STEP_VEL = 0.1;
   double const STEP_W = 0.5;
-
+  const double MAX_ROTATION_SPEED = 2.5;
+  const double STEP_ROTATION_SPEED = 0.2;
   std::vector<SDL_Keycode> const arrowKeys = {
       SDLK_UP,
       SDLK_DOWN,
@@ -58,8 +60,8 @@ private:
   // define more descriptive names for the keys
   static const SDL_Keycode KEY_INCREASE_VEL    = SDLK_KP_6;
   static const SDL_Keycode KEY_DECREASE_VEL    = SDLK_KP_4;
-  static const SDL_Keycode KEY_INCREASE_ANGLE  = SDLK_KP_3;
-  static const SDL_Keycode KEY_DECREASE_ANGLE  = SDLK_KP_1;
+  static const SDL_Keycode KEY_INCREASE_ROTATION_SPEED  = SDLK_KP_3;
+  static const SDL_Keycode KEY_DECREASE_ROTATION_SPEED  = SDLK_KP_1;
   static const SDL_Keycode KEY_INCREASE_KICK   = SDLK_KP_9;
   static const SDL_Keycode KEY_DECREASE_KICK   = SDLK_KP_7;
   static const SDL_Keycode KEY_STRAFE_LEFT     = SDLK_z;
@@ -67,6 +69,6 @@ private:
   static const SDL_Keycode KEY_DRIBBLE         = SDLK_SPACE;
   static const SDL_Keycode KEY_KICK            = SDLK_v;
   static const SDL_Keycode KEY_CHIP            = SDLK_n;
-  static const SDL_Keycode KEY_ROTATE_LEFT     = SDLK_PAGEUP;
-  static const SDL_Keycode KEY_ROTATE_RIGHT    = SDLK_PAGEDOWN;
+  static const SDL_Keycode KEY_GENEVA_LEFT     = SDLK_PAGEUP;
+  static const SDL_Keycode KEY_GENEVA_RIGHT    = SDLK_PAGEDOWN;
 };
