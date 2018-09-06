@@ -18,8 +18,13 @@ private:
     const int MIN_GENEVA_STATE = 1;
     const int MAX_GENEVA_STATE = 5;
     SDL_Renderer *renderer = nullptr;
+    SDL_Window* window = nullptr;
 
     // Margins
+    const int WINDOW_POS_X = 100;
+    const int WINDOW_POS_Y = 200;
+    const int WINDOW_SIZE_X = 300;
+    const int WINDOW_SIZE_Y = 400;
     const int OFFSET_X = 10;
     const int BAR_HEIGHT = 20;
     const int BAR_WIDTH = 200;
@@ -46,7 +51,7 @@ private:
 public:
     explicit InputInterface();
     ~InputInterface();
-    void drawGui(SDL_Renderer * renderer, int kickPower, double currentVelocity, double currentAngularVelocity, int currentGenevaState, int currentId);
+    void drawGui(int kickPower, double currentVelocity, double currentAngularVelocity, int currentGenevaState, int currentId);
 };
 
 #endif //ROBOTEAM_INPUT_INTERFACE_H

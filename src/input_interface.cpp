@@ -6,6 +6,16 @@
 #include "input_interface.h"
 
 InputInterface::InputInterface() : renderer(nullptr){
+  window = SDL_CreateWindow("RTT Keyboard Joystick", WINDOW_POS_X, WINDOW_POS_Y, WINDOW_SIZE_X, WINDOW_SIZE_Y, 0);
+  if (window == nullptr) {
+      std::cout << "Failed to create window : " << SDL_GetError();
+  }
+
+  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  if (renderer == nullptr) {
+      std::cout << "Failed to create renderer : " << SDL_GetError();
+  }
+
   // load the font
   if (TTF_Init() < 0) {
       std::cout << "TTF library could not be initialized!!";
@@ -18,7 +28,7 @@ InputInterface::~InputInterface() {
   TTF_Quit();
 }
 
-void InputInterface::drawGui(SDL_Renderer * renderer, int kickPower, double velocity, double angularVelocity, int genevaState, int id) {
+void InputInterface::drawGui(int kickPower, double velocity, double angularVelocity, int genevaState, int id) {
     this->renderer = renderer;
 
     // set background

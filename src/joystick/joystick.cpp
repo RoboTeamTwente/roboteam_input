@@ -22,7 +22,6 @@ namespace b = ::boost;
 namespace bp = ::boost::process;
 
 namespace rtt {
-
     const int NUM_CONTROLLERS = 2;
     const int TIMEOUT_SECONDS = 1;
 
