@@ -22,12 +22,11 @@ public:
 // TODO make these variables private and only accesible using getters/setters
   int currentGenevaState = 3;
   double currentVel = 1;
-  double currentW = 5;
+  double currentW = 2;
   int currentKick = 1;
   int currentId = 0;
 
 private:
-
   // Limits
   double const MAX_VEL = 6;
   double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
@@ -37,15 +36,15 @@ private:
   // robot Values
   int x_vel = 0;
   int y_vel = 0;
-  int w = 0;
+  double w = 18;
   bool doKick = false;
   bool enKick = false;
   bool doChip = false;
   bool doDribble = false;
+  int orientationOffset = 0;
 
   double const STEP_VEL = 0.1;
-  double const STEP_W = 0.1;
-
+  double const STEP_W = 0.5;
 
   std::vector<SDL_Keycode> const arrowKeys = {
       SDLK_UP,

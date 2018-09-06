@@ -42,10 +42,10 @@ if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.repeat == 0) {
         x_vel -= modifierInt;
         break;
       case SDLK_LEFT:
-        w += modifierInt;
+        w++;
         break;
       case SDLK_RIGHT:
-        w -= modifierInt;
+        w--;
         break;
       case KEY_STRAFE_LEFT:
         y_vel += modifierInt;
@@ -81,15 +81,27 @@ if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.repeat == 0) {
   if (currentKick < 0) currentKick = 0;
   if (currentGenevaState<MIN_GENEVA_STATE) currentGenevaState = MIN_GENEVA_STATE;
   if (currentGenevaState>MAX_GENEVA_STATE) currentGenevaState = MAX_GENEVA_STATE;
+
+  if (16 * M_PI < w)
+      w -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+  if (w < -16 * M_PI)
+      w += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+
 }
 
 roboteam_msgs::RobotCommand KeyboardManager::GetRobotCommand() {
   roboteam_msgs::RobotCommand robotCommand;
 
+  rtt::Vector2 driveVector;
+  driveVector.x = x_vel;
+  driveVector.y = y_vel;
+
+  driveVector = driveVector.rotate(w/16);   // Rotate velocity according to orientation and orientation offset
+  robotCommand.x_vel = currentVel * driveVector.x;  // Set x velocity
+  robotCommand.y_vel = currentVel * driveVector.y;  // Set y velocity
+
   robotCommand.id = currentId;
-  robotCommand.x_vel = x_vel * currentVel;
-  robotCommand.y_vel = y_vel * currentVel;
-  robotCommand.w = w * currentW;
+  robotCommand.w = w;
   robotCommand.use_angle = true;
 
   if (doKick) {
