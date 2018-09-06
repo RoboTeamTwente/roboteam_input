@@ -8,12 +8,12 @@ void KeyboardManager::handleSDLEvents(SDL_Event const & e) {
   if (e.type == SDL_KEYDOWN) {
       modifierInt = 1;
       modifierBool = true;
-  } else if (e.type == SDL_KEYUP && e.key.repeat == 0) {
+  } else if (e.type == SDL_KEYUP) {
       modifierInt = -1;
       modifierBool = false;
   }
 
-if (e.type == SDL_KEYDOWN || (e.type == SDL_KEYUP && e.key.repeat == 0)) {
+if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.repeat == 0) {
 
     auto key = e.key.keysym.sym;
     switch(key) {
