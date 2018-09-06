@@ -94,7 +94,7 @@ bool isCtrlPressed(SDL_Event const e) {
 int main(int argc, char* argv[]) {
     std::vector<std::string> args(argv + 1, argv + argc);
 
-    if (cmdOptionExists(args, "--help") || cmdOptionExists(args, "-h")) {
+    if (cmdOptionExists(args, "--help") || cmdOptionExists(args, "-h") || cmdOptionExists (args, "man")) {
         printHelpMessage();
         return 0;
     }
