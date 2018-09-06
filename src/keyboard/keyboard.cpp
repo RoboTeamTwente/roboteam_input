@@ -103,13 +103,11 @@ int main(int argc, char* argv[]) {
     initializeSDL();
 
     KeyboardManager keyManager = KeyboardManager();
-
     InputInterface interface = InputInterface();
 
-    int currentID = 0;
     if (auto idOpt = getCmdOption(args, "-id")) {
         try {
-            currentID = std::stoi(*idOpt);
+            keyManager.currentId = std::stoi(*idOpt);
         } catch (...) {
             std::cerr << "Could not convert id \"" << *idOpt << "\" to integer. Keeping 5.";
         }
@@ -130,9 +128,6 @@ int main(int argc, char* argv[]) {
     SDL_Event event;
     while(!quit && ros::ok()) {
         while(SDL_PollEvent(&event) != 0) {
-
-
-
             if (event.type == SDL_QUIT) {
                 quit = true;
             } else if (event.type == SDL_KEYDOWN) {
@@ -146,12 +141,10 @@ int main(int argc, char* argv[]) {
 
                 // Handle ID switching
                 if (std::find(robotIDKeys.begin(), robotIDKeys.end(), key) != robotIDKeys.end()) {
-                    if (!(key == SDLK_c && isCtrlPressed(event))) {
-                        if (auto currentIDOpt = stringToID(SDL_GetKeyName(key))) {
-                            currentID = *currentIDOpt;
-                        } else {
-                            std::cout << "Bad ID key pressed, retaining original ID.";
-                        }
+                    if (auto currentIDOpt = stringToID(SDL_GetKeyName(key))) {
+                        keyManager.currentId = *currentIDOpt;
+                    } else {
+                        std::cout << "Bad ID key pressed, retaining original ID.";
                     }
                 }
             }

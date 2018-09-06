@@ -24,7 +24,7 @@ public:
   double currentVel = 1;
   double currentW = 5;
   int currentKick = 1;
-  int currentId = 1;
+  int currentId = 0;
 
 private:
 
