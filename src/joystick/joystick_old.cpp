@@ -62,6 +62,7 @@ struct JoyEntry {
     // ==== Variables related to automatically running a RoleNode
     std::time_t timeLastReceived = std::time(0);// added by anouk
     ::boost::optional<::boost::process::child> processAuto;         // Holds the joy_node auto process
+    bool autoPlayOn = false;                    // Indicates if autoPlay should be started
     bool autoAttacker = true;
     bool dribblerOn = false;
 
@@ -300,6 +301,10 @@ void handleButtons(JoyEntry &joy, sensor_msgs::Joy const &msg) {
         /* ==== Enable / Disable autoPlay on LeftTrigger Click ==== */
         btn = Xbox360Controller::LeftStick;
         if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {   // If LeftStick is pressed
+            if (!joy.isPressed(btn)) {                                // Check if it was already pressed before
+                joy.autoPlayOn = !joy.autoPlayOn;                       // Toggle autoPlayOn
+                ROS_INFO_STREAM(joy.input << " autoPlay is now " << (joy.autoPlayOn ? "On" : "Off"));
+            }
             joy.press(btn);                                     // Set button state to pressed
         } else {
             joy.release(btn);                                   // Set button state to released
@@ -529,18 +534,18 @@ int main(int argc, char **argv) {
         ros::spinOnce();
 
         for (auto &joystick : joys) {
-                // If joystick message received
-                if(joystick.msg) {
-                    // HandleButtons, such as ID switching
-                    handleButtons(joystick, *joystick.msg);
+            // If joystick message received
+            if(joystick.msg) {
+                // HandleButtons, such as ID switching
+                handleButtons(joystick, *joystick.msg);
 
-                    // Send robotcommand if skill is not running atm
-                    if(!joystick.skillIsRunning) {
-                        auto command = makeRobotCommand(joystick, *joystick.msg);
-                        command.use_angle = true;
-                        pub.publish(command);
-                    }
+                // Send robotcommand if skill is not running atm
+                if(!joystick.skillIsRunning) {
+                    auto command = makeRobotCommand(joystick, *joystick.msg);
+                    command.use_angle = true;
+                    pub.publish(command);
                 }
+            }
         }
         fps.sleep();
     }
