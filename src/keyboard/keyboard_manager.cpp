@@ -67,8 +67,8 @@ void KeyboardManager::handleSDLEvents(SDL_Event const & e) {
 
             // strafe towards left
         case KEY_STRAFE_LEFT:
-            if (keyPressed) w = 1;
-            else if (keyReleased) w = 0;
+            if (keyPressed) yDirection = 1;
+            else if (keyReleased) yDirection = 0;
             break;
 
             // strafe towards right
@@ -110,8 +110,6 @@ void KeyboardManager::handleSDLEvents(SDL_Event const & e) {
     // limits
     if (rotationSpeed > MAX_ROTATION_SPEED) rotationSpeed = MAX_ROTATION_SPEED;
     if (rotationSpeed < MIN_ROTATION_SPEED) rotationSpeed = MIN_ROTATION_SPEED;
-
-
 
 
     if (currentVel > MAX_VEL) currentVel = MAX_VEL;

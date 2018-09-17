@@ -10,7 +10,6 @@ Multiple parameters are distilled from the keyboard controls and converted into 
 #include "roboteam_utils/Vector2.h"
 #include <iostream>
 #include <SDL.h>
-#include "gtest/gtest.h"
 
 namespace b = boost;
 

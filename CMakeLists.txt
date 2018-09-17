@@ -95,3 +95,17 @@ else (${SDL2_FOUND})
     MESSAGE("-- SDL2 not found, so cannot build keyboard_controller! Have you installed SDL2?")
 
 endif(${SDL2_FOUND})
+
+#############
+## Testing ##
+#############
+catkin_add_gtest(input_test
+        test/main.cpp
+        test/SimpleTest.cpp
+        src/keyboard/keyboard_manager.h
+        src/keyboard/keyboard_manager.cpp
+        )
+
+target_link_libraries(input_test ${catkin_LIBRARIES}
+        ${SDL2_LIBRARY}
+        ${SDL2TTF_LIBRARY})
