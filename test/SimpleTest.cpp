@@ -7,6 +7,7 @@ KeyboardManager keyboard;
 void generateKeyPress(Uint32 type, SDL_Keycode key) {
     SDL_Event test_event;
     test_event.type = type;
+    test_event.key.repeat = 0;
     test_event.key.keysym.sym = key;
 
     keyboard.handleSDLEvents(test_event);
@@ -89,19 +90,21 @@ TEST(KeyboardTest, It_turns_geneva) {
 
     // turn left
     for (int i = 0; i < 5; i++) {
-        generateKeyPress(SDL_KEYUP, SDLK_PAGEDOWN); // KEYUP must not make a difference
-
-        generateKeyPress(SDL_KEYDOWN, SDLK_PAGEDOWN);
+        generateKeyPress(SDL_KEYUP, SDLK_PAGEUP); // KEYUP must not make a difference
+        generateKeyPress(SDL_KEYDOWN, SDLK_PAGEUP);
+        int genevaState = keyboard.GetRobotCommand().geneva_state;
         testsPassing = testsPassing
-                && keyboard.GetRobotCommand().geneva_state == std::max(InitialGenevaState - i, 1);
+                && genevaState == std::max(InitialGenevaState - 1 - i, 1);
     }
 
     // turn left
     for (int i = 0; i < 5; i++) {
         generateKeyPress(SDL_KEYUP, SDLK_PAGEDOWN); // KEYUP must not make a difference
 
-        generateKeyPress(SDL_KEYDOWN, SDLK_PAGEUP);
+        generateKeyPress(SDL_KEYDOWN, SDLK_PAGEDOWN);
         testsPassing = testsPassing
-                       && keyboard.GetRobotCommand().geneva_state == std::min(InitialGenevaState + i, 5);
+                       && keyboard.GetRobotCommand().geneva_state == std::min(InitialGenevaState - 1 + i, 5);
     }
+    ASSERT_TRUE(testsPassing);
+
 }
