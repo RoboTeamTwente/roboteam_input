@@ -1,5 +1,5 @@
 /*
-This class manages the keyboard controls, and draw the parameters to the screen using InputInterface.
+* This class manages the keyboard controls, and draw the parameters to the screen using InputInterface.
 */
 
 #include <SDL.h>
@@ -13,7 +13,6 @@ This class manages the keyboard controls, and draw the parameters to the screen 
 #include "keyboard_manager.h"
 
 namespace b = boost;
-
 
 // This vector described 0 to 15 in hex numbers
 std::vector<SDL_Keycode> const robotIDKeys = {
@@ -90,7 +89,6 @@ bool isCtrlPressed(SDL_Event const e) {
     return false;
 }
 
-
 int main(int argc, char* argv[]) {
     std::vector<std::string> args(argv + 1, argv + argc);
 
@@ -107,7 +105,7 @@ int main(int argc, char* argv[]) {
 
     if (auto idOpt = getCmdOption(args, "-id")) {
         try {
-            keyManager.currentId = std::stoi(*idOpt);
+            keyManager.setCurrentId(std::stoi(*idOpt));
         } catch (...) {
             std::cerr << "Could not convert id \"" << *idOpt << "\" to integer. Keeping 5.";
         }
@@ -118,10 +116,7 @@ int main(int argc, char* argv[]) {
     ros::NodeHandle n;
     auto robotCommandPub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 100);
 
-    // TODO: Maybe base this on role_iterations_per_second?
     ros::Rate fpsRate(60);
-
-
 
     // Event loop
     bool quit = false;
@@ -142,7 +137,7 @@ int main(int argc, char* argv[]) {
                 // Handle ID switching
                 if (std::find(robotIDKeys.begin(), robotIDKeys.end(), key) != robotIDKeys.end()) {
                     if (auto currentIDOpt = stringToID(SDL_GetKeyName(key))) {
-                        keyManager.currentId = *currentIDOpt;
+                        keyManager.setCurrentId(*currentIDOpt);
                     } else {
                         std::cout << "Bad ID key pressed, retaining original ID.";
                     }
@@ -159,7 +154,7 @@ int main(int argc, char* argv[]) {
         fpsRate.sleep();
 
         // Draw the gui and refresh the screen
-        interface.drawGui(keyManager.currentKick, keyManager.currentVel, keyManager.currentAngularVelocity, keyManager.currentGenevaState, keyManager.currentId);
+        interface.drawGui(keyManager.getCurrentKick(), keyManager.getCurrentVel(), keyManager.getRotationSpeed(), keyManager.getCurrentGenevaState(), keyManager.getCurrentId());
     }
     return 0;
 }

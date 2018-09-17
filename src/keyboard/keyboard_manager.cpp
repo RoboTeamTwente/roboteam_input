@@ -1,128 +1,191 @@
 #include "keyboard_manager.h"
 
-KeyboardManager::KeyboardManager() {}
+KeyboardManager::KeyboardManager() = default;
 
 void KeyboardManager::handleSDLEvents(SDL_Event const & e) {
-  int modifierInt = 0;
-  bool modifierBool = false;
-  if (e.type == SDL_KEYDOWN) {
-      modifierInt = 1;
-      modifierBool = true;
-  } else if (e.type == SDL_KEYUP) {
-      modifierInt = -1;
-      modifierBool = false;
-  }
+    bool keyPressed = e.type == SDL_KEYDOWN;
+    bool keyReleased = e.type == SDL_KEYUP;
+    bool notARepeatedKeyPress = e.key.repeat == 0;
 
-if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.repeat == 0) {
-
+    // handle events for each key
     auto key = e.key.keysym.sym;
     switch(key) {
-      case KEY_INCREASE_VEL:
-        currentVel += STEP_VEL;
-        break;
-      case KEY_DECREASE_VEL:
-        currentVel -= STEP_VEL;
-        break;
-      case KEY_INCREASE_ROTATION_SPEED:
-        rotationSpeed+=STEP_ROTATION_SPEED;
-        break;
-      case KEY_DECREASE_ROTATION_SPEED:
-        rotationSpeed-=STEP_ROTATION_SPEED;
-        break;
-      case KEY_INCREASE_KICK:
-        currentKick++;
-        break;
-      case KEY_DECREASE_KICK:
-        currentKick--;
-        break;
-      case SDLK_UP:
-        x_vel += modifierInt;
-        break;
-      case SDLK_DOWN:
-        x_vel -= modifierInt;
-        break;
-      case SDLK_LEFT:
-        w+=modifierInt;
-        break;
-      case SDLK_RIGHT:
-        w-=modifierInt;
-        break;
-      case KEY_STRAFE_LEFT:
-        y_vel += modifierInt;
-        break;
-      case KEY_STRAFE_RIGHT:
-        y_vel -= modifierInt;
-        break;
-      case KEY_DRIBBLE:
-        doDribble = modifierBool;
-        break;
-      case KEY_KICK:
-        doKick = modifierBool;
-        break;
-      case KEY_CHIP:
-        doChip = modifierBool;
-        break;
-      case KEY_GENEVA_LEFT:
-        currentGenevaState--;
-        break;
-      case KEY_GENEVA_RIGHT:
-        currentGenevaState++;
-        break;
-      default: break;
+
+             // increase driving speed
+        case KEY_INCREASE_VEL:
+            if (keyPressed) currentVel += STEP_VEL;
+            break;
+
+            // decrease driving speed
+        case KEY_DECREASE_VEL:
+            if (keyPressed) currentVel -= STEP_VEL;
+            break;
+
+            // increase rotation speed
+        case KEY_INCREASE_ROTATION_SPEED:
+            if (keyPressed) rotationSpeed+=STEP_ROTATION_SPEED;
+            break;
+
+            // decrease rotation speed
+        case KEY_DECREASE_ROTATION_SPEED:
+            if (keyPressed) rotationSpeed-=STEP_ROTATION_SPEED;
+            break;
+
+            // increase kickpower
+        case KEY_INCREASE_KICK:
+            if (keyPressed) currentKick++;
+            break;
+
+            // decrease kickpower
+        case KEY_DECREASE_KICK:
+            if (keyPressed) currentKick--;
+            break;
+
+            // drive forward
+        case SDLK_UP:
+            if (keyPressed) xDirection = 1;
+            else if (keyReleased) xDirection = 0;
+            break;
+
+            // drive backward
+        case SDLK_DOWN:
+            if (keyPressed) xDirection = -1;
+            else if (keyReleased) xDirection = 0;
+            break;
+
+            // rotate to the left
+        case SDLK_LEFT:
+            if (keyPressed) rotationDirection = 1;
+            else if (keyReleased) rotationDirection = 0;
+            break;
+
+            // rotate to the right
+        case SDLK_RIGHT:
+            if (keyPressed) rotationDirection = -1;
+            else if (keyReleased) rotationDirection = 0;
+            break;
+
+            // strafe towards left
+        case KEY_STRAFE_LEFT:
+            if (keyPressed) w = 1;
+            else if (keyReleased) w = 0;
+            break;
+
+            // strafe towards right
+        case KEY_STRAFE_RIGHT:
+            if (keyPressed) yDirection = -1;
+            else if (keyReleased) yDirection = 0;
+            break;
+
+            // toggle the dribbler
+        case KEY_DRIBBLE:
+            if (keyPressed) doDribble = !doDribble;
+            break;
+
+            // kick
+        case KEY_KICK:
+            if (keyPressed) doKick = true;
+            else if (keyReleased) doKick = false;
+            break;
+
+            // chip
+        case KEY_CHIP:
+            if (keyPressed) doChip = true;
+            else if (keyReleased) doChip = false;
+            break;
+
+            // rotate the geneva to left
+        case KEY_GENEVA_LEFT:
+            if (keyPressed && notARepeatedKeyPress) currentGenevaState --;
+            break;
+
+            // rotate the geneva to right
+        case KEY_GENEVA_RIGHT:
+            if (keyPressed && notARepeatedKeyPress) currentGenevaState ++;
+            break;
+        default: break;
     }
-  }
 
 
-  if (rotationSpeed > MAX_ROTATION_SPEED) rotationSpeed = MAX_ROTATION_SPEED;
-  if (rotationSpeed < 0) rotationSpeed = 0;
+    // limits
+    if (rotationSpeed > MAX_ROTATION_SPEED) rotationSpeed = MAX_ROTATION_SPEED;
+    if (rotationSpeed < MIN_ROTATION_SPEED) rotationSpeed = MIN_ROTATION_SPEED;
 
-  rotation += w * rotationSpeed; // the number is rotation speed;
 
-  // limits
-  if (currentVel > MAX_VEL) currentVel = MAX_VEL;
-  if (currentVel < 0) currentVel = 0;
-  if (currentAngularVelocity > MAX_W) currentAngularVelocity = MAX_W;
-  if (currentAngularVelocity < 0) currentAngularVelocity = 0;
-  if (currentKick > roboteam_msgs::RobotCommand::MAX_KICKER_VEL) currentKick = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
-  if (currentKick < 0) currentKick = 0;
-  if (currentGenevaState<MIN_GENEVA_STATE) currentGenevaState = MIN_GENEVA_STATE;
-  if (currentGenevaState>MAX_GENEVA_STATE) currentGenevaState = MAX_GENEVA_STATE;
 
-  if (16 * M_PI < rotation)
-      rotation -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
-  if (rotation < -16 * M_PI)
-      rotation += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+
+    if (currentVel > MAX_VEL) currentVel = MAX_VEL;
+    if (currentVel < 0) currentVel = 0;
+    if (currentKick > roboteam_msgs::RobotCommand::MAX_KICKER_VEL) currentKick = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
+    if (currentKick < 0) currentKick = 0;
+    if (currentGenevaState<MIN_GENEVA_STATE) currentGenevaState = MIN_GENEVA_STATE;
+    if (currentGenevaState>MAX_GENEVA_STATE) currentGenevaState = MAX_GENEVA_STATE;
+
+
 }
 
 roboteam_msgs::RobotCommand KeyboardManager::GetRobotCommand() {
-  roboteam_msgs::RobotCommand robotCommand;
+    roboteam_msgs::RobotCommand robotCommand;
 
-  rtt::Vector2 driveVector;
-  driveVector.x = x_vel;
-  driveVector.y = y_vel;
+    rtt::Vector2 driveVector;
+    driveVector.x = xDirection;
+    driveVector.y = yDirection;
 
-  driveVector = driveVector.rotate(rotation/16);   // Rotate velocity according to orientation and orientation offset
-  robotCommand.x_vel = currentVel * driveVector.x;  // Set x velocity
-  robotCommand.y_vel = currentVel * driveVector.y;  // Set y velocity
+    rotation += rotationDirection * rotationSpeed;
 
-  robotCommand.id = currentId;
-  robotCommand.w = rotation;
-  robotCommand.use_angle = true;
+    if (16 * M_PI < rotation)
+        rotation -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+    if (rotation < -16 * M_PI)
+        rotation += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
 
-  if (doKick) {
-      robotCommand.kicker = true;
-      robotCommand.kicker_forced = true;
-      robotCommand.kicker_vel = currentKick;
-      // robotCommand.kicker_forced = true;
-  } else if (doChip) {
-      robotCommand.chipper = true;
-      robotCommand.chipper_forced = true;
-      robotCommand.chipper_vel = currentKick;
-      // robotCommand.chipper_forced= true;
-  }
+    driveVector = driveVector.rotate(rotation/16);   // Rotate velocity according to orientation and orientation offset
 
-  robotCommand.dribbler = doDribble;
-  robotCommand.geneva_state = currentGenevaState;
 
-  return robotCommand;
+    robotCommand.x_vel = currentVel * driveVector.x;  // Set x velocity
+    robotCommand.y_vel = currentVel * driveVector.y;  // Set y velocity
+
+    robotCommand.id = currentId;
+    robotCommand.w = rotation;
+    robotCommand.use_angle = true;
+
+    if (doKick) {
+        robotCommand.kicker = true;
+        robotCommand.kicker_forced = true;
+        robotCommand.kicker_vel = currentKick;
+        // robotCommand.kicker_forced = true;
+    } else if (doChip) {
+        robotCommand.chipper = true;
+        robotCommand.chipper_forced = true;
+        robotCommand.chipper_vel = currentKick;
+        // robotCommand.chipper_forced= true;
+    }
+
+    robotCommand.dribbler = doDribble;
+    robotCommand.geneva_state = currentGenevaState;
+
+    return robotCommand;
+}
+
+int KeyboardManager::getCurrentGenevaState() const {
+    return currentGenevaState;
+}
+
+double KeyboardManager::getCurrentVel() const {
+    return currentVel;
+}
+
+int KeyboardManager::getCurrentKick() const {
+    return currentKick;
+}
+
+int KeyboardManager::getCurrentId() const {
+    return currentId;
+}
+
+double KeyboardManager::getRotationSpeed() const {
+    return rotationSpeed;
+}
+
+void KeyboardManager::setCurrentId(int currentId) {
+    KeyboardManager::currentId = currentId;
 }

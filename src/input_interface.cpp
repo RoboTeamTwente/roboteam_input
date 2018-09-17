@@ -87,7 +87,7 @@ void InputInterface::showVelocity(double currentVelocity) {
 
 void InputInterface::showAngle(double currentAngularVelocity) {
     drawText("Angular velocity     (keypad 1-3)", OFFSET_X, drawHeight);
-    drawRect(OFFSET_X, drawHeight + SPACING, currentAngularVelocity/MAX_ANGULAR_VELOCITY*BAR_WIDTH, BAR_HEIGHT, true);
+    drawRect(OFFSET_X, drawHeight + SPACING, currentAngularVelocity/MAX_ROTATION_SPEED*BAR_WIDTH, BAR_HEIGHT, true);
     drawHeight+=80;
 }
 
