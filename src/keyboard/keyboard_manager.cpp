@@ -150,12 +150,10 @@ roboteam_msgs::RobotCommand KeyboardManager::GetRobotCommand() {
         robotCommand.kicker = true;
         robotCommand.kicker_forced = true;
         robotCommand.kicker_vel = currentKick;
-        // robotCommand.kicker_forced = true;
     } else if (doChip) {
         robotCommand.chipper = true;
         robotCommand.chipper_forced = true;
         robotCommand.chipper_vel = currentKick;
-        // robotCommand.chipper_forced= true;
     }
 
     robotCommand.dribbler = doDribble;
