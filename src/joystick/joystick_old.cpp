@@ -49,8 +49,8 @@ const std::map<Xbox360Controller, int> xbox360mapping = {
 
 struct JoyEntry {
     ::boost::optional<::boost::process::child> process;             // Holds the joy_node process
-    ::boost::optional <ros::Subscriber> subscriber;    // Subscribes to the joy_node topic (/js0, /js1 etc etc)
-    ::boost::optional <sensor_msgs::Joy> msg;          // Holds the latest message from the joy_node topic
+    ::boost::optional <ros::Subscriber> subscriber;                 // Subscribes to the joy_node topic (/js0, /js1 etc etc)
+    ::boost::optional <sensor_msgs::Joy> msg;                       // Holds the latest message from the joy_node topic
 
     std::string input;                          // js0
     int robotID;                                // 1 - 16
@@ -85,15 +85,16 @@ struct JoyEntry {
     }
 
     void init() {
-        ROS_INFO_STREAM(input << " connected to robot " << robotID);
+        ROS_INFO_STREAM(input << "connected to robot " << robotID);
         setToInput("js" + std::to_string(MY_ID));
     }
 
     void setToInput(std::string newInput) {
-        ROS_INFO_STREAM(input << " now listening to " << newInput);
+        ROS_INFO_STREAM(input << "now listening to " << newInput);
 
         // Remove the most recently received message to prevent stale values.
         msg = ::boost::none;
+        msg
 
         if (newInput == input)
             return;
@@ -185,7 +186,6 @@ struct JoyEntry {
 
         if (!isConnected && controllerConnected)
             ROS_WARN_STREAM(input << ": Controller disconnected");
-        ROS_WARN_STREAM(input << ": Hanlo met hont!");
 
         controllerConnected = isConnected;
 
@@ -503,8 +503,6 @@ void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr &cmd) {
             }
         }
     }
-}
-
 
 int main(int argc, char **argv) {
     using namespace rtt;
