@@ -101,7 +101,7 @@ endif(${SDL2_FOUND})
 #############
 catkin_add_gtest(input_test
         test/main.cpp
-        test/SimpleTest.cpp
+        test/KeyboardManagerTest.cpp
         src/keyboard/keyboard_manager.h
         src/keyboard/keyboard_manager.cpp
         )
