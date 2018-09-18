@@ -80,19 +80,19 @@ SDL_Rect InputInterface::drawRect(int x, int y, int w, int h, bool isFilled) {
 }
 
 void InputInterface::showVelocity(double currentVelocity) {
-    drawText("Velocity (keypad 5-7)", OFFSET_X, drawHeight);
+    drawText("Velocity             (keypad 5-7)", OFFSET_X, drawHeight);
     drawRect(OFFSET_X, drawHeight + SPACING, currentVelocity/MAX_VEL*BAR_WIDTH, BAR_HEIGHT, true);
     drawHeight+= 80;
 }
 
 void InputInterface::showAngle(double currentAngularVelocity) {
-    drawText("Angular velocity", OFFSET_X, drawHeight);
-    drawRect(OFFSET_X, drawHeight + SPACING, currentAngularVelocity/MAX_ANGULAR_VELOCITY*BAR_WIDTH, BAR_HEIGHT, true);
+    drawText("Angular velocity     (keypad 1-3)", OFFSET_X, drawHeight);
+    drawRect(OFFSET_X, drawHeight + SPACING, currentAngularVelocity/MAX_ROTATION_SPEED*BAR_WIDTH, BAR_HEIGHT, true);
     drawHeight+=80;
 }
 
 void InputInterface::showKickPower(int kickPower) {
-    drawText("Kickpower (keypad 4-6)", OFFSET_X, drawHeight);
+    drawText("Kickpower            (keypad 4-6)", OFFSET_X, drawHeight);
     int boxSize = BAR_HEIGHT;
     for (int i = 0; i < 8; ++i) {
       int kickPowerHere = i + 1;

@@ -13,7 +13,9 @@
 class InputInterface {
 private:
     // System values
-    const double MAX_ANGULAR_VELOCITY = 2048.0/36.0 * 2 * M_PI; // max angular velocity value in radians
+    const double MAX_ROTATION_SPEED = 8;
+    const double MIN_ROTATION_SPEED = 1;
+    // const double MAX_ANGULAR_VELOCITY = 2048.0/36.0 * 2 * M_PI; // max angular velocity value in radians
     const double MAX_VEL = 6.0; // m/s
     const int MIN_GENEVA_STATE = 1;
     const int MAX_GENEVA_STATE = 5;
