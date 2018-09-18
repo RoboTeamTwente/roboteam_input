@@ -11,10 +11,18 @@
 namespace constants {
     const int MAX_GENEVA_STATE = 5;
     const int MIN_GENEVA_STATE = 1;
+
     const int MAX_ROBOT_VELOCITY = 6; // m/s
+    const int MIN_ROBOT_VELOCITY = 0; // m/s
+    const int ROBOT_VELOCITY_STEP_SIZE = 0.2; // m/s
+
     const double MAX_ROTATION_SPEED = 5;
     const double MIN_ROTATION_SPEED = 1;
+    const double ROTATION_SPEED_STEP_SIZE = 0.2;
+
     double const MAX_W = 2048.0 / 360.0 * (2 * M_PI);
+
+    const double MIN_KICKER_VEL = 0;
 
     // define more descriptive names for the keys
     static const SDL_Keycode KEY_INCREASE_VEL    = SDLK_KP_6;

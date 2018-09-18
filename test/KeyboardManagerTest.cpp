@@ -72,6 +72,24 @@ TEST(KeyboardTest, It_chips) {
     ASSERT_TRUE(!cmd.chipper && !cmd.chipper_forced);
 }
 
+TEST(KeyboardTest, It_changes_kick_and_chip_force) {
+
+    for (int i = 0; i < 100; i++) {
+        generateKeyPress(SDL_KEYDOWN, constants::KEY_INCREASE_KICK);
+    }
+
+    generateKeyPress(SDL_KEYDOWN, constants::KEY_KICK);
+    cmd = keyboard.GetRobotCommand();
+    EXPECT_EQ(cmd.kicker_vel, roboteam_msgs::RobotCommand::MAX_KICKER_VEL);
+
+    for (int i = 0; i < 100; i++) {
+        generateKeyPress(SDL_KEYDOWN, constants::KEY_DECREASE_KICK);
+    }
+
+    cmd = keyboard.GetRobotCommand();
+    EXPECT_EQ(cmd.chipper_vel, constants::MIN_KICKER_VEL);
+}
+
 // Geneva turning test and boundary check
 TEST(KeyboardTest, It_turns_geneva) {
     int InitialGenevaState = keyboard.GetRobotCommand().geneva_state;
@@ -105,12 +123,28 @@ TEST(KeyboardTest, It_turns_geneva) {
     EXPECT_EQ(keyboard.GetRobotCommand().geneva_state, InitialGenevaState);
 }
 
+
 TEST(KeyboardTest, It_rotates_robot) {
     float oldAngle =  keyboard.GetRobotCommand().w;
     generateKeyPress(SDL_KEYDOWN, SDLK_LEFT);
     cmd = keyboard.GetRobotCommand();
-
     EXPECT_TRUE(cmd.use_angle && cmd.w > oldAngle);
+    float angleDifference = cmd.w - oldAngle;
+
+    // Test if changing angle speed does something
+    oldAngle = keyboard.GetRobotCommand().w;
+    generateKeyPress(SDL_KEYDOWN, constants::KEY_INCREASE_ROTATION_SPEED);
+    cmd = keyboard.GetRobotCommand();
+    float newAngleDifference = cmd.w - oldAngle;
+    oldAngle = cmd.w;
+
+    EXPECT_GT(newAngleDifference, angleDifference);
+
+    generateKeyPress(SDL_KEYDOWN, constants::KEY_DECREASE_ROTATION_SPEED);
+    generateKeyPress(SDL_KEYDOWN, SDLK_LEFT);
+    cmd = keyboard.GetRobotCommand();
+    newAngleDifference = cmd.w - oldAngle;
+    EXPECT_NEAR(newAngleDifference, angleDifference, 0.1);
 
     // these are some repeated keypresses
     // Test limits
@@ -124,18 +158,49 @@ TEST(KeyboardTest, It_rotates_robot) {
     oldAngle =  keyboard.GetRobotCommand().w;
     generateKeyPress(SDL_KEYUP, SDLK_LEFT);
     cmd = keyboard.GetRobotCommand();
-
-    // The angle should not change anymore.
-    ASSERT_EQ(cmd.w, oldAngle);
+    EXPECT_EQ(cmd.w, oldAngle);
 }
 
-/*
- *
- *  static const SDL_Keycode KEY_INCREASE_VEL    = SDLK_KP_6;
-    static const SDL_Keycode KEY_DECREASE_VEL    = SDLK_KP_4;
-    static const SDL_Keycode KEY_INCREASE_ROTATION_SPEED  = SDLK_KP_3;
-    static const SDL_Keycode KEY_DECREASE_ROTATION_SPEED  = SDLK_KP_1;
-    static const SDL_Keycode KEY_INCREASE_KICK   = SDLK_KP_9;
-    static const SDL_Keycode KEY_DECREASE_KICK   = SDLK_KP_7;
- */
+TEST(KeyboardTest, It_drives_forward_and_backward) {
+    // make sure we are driving (we simulate using xvel, which is up and down.)
+    generateKeyPress(SDL_KEYDOWN, SDLK_UP);
+    cmd = keyboard.GetRobotCommand();
+    EXPECT_GT(cmd.x_vel, 0);
+    float velocityDifference = cmd.x_vel;
+
+    // stop pressing so the velocity should be 0 again
+    generateKeyPress(SDL_KEYUP, SDLK_UP);
+    cmd = keyboard.GetRobotCommand();
+    EXPECT_EQ(cmd.x_vel, 0);
+
+    // increase speed
+    generateKeyPress(SDL_KEYDOWN, constants::KEY_INCREASE_VEL);
+
+    // the speed difference should be higher
+    generateKeyPress(SDL_KEYDOWN, SDLK_UP);
+    cmd = keyboard.GetRobotCommand();
+    EXPECT_GT(cmd.x_vel, velocityDifference);
+
+    // test limits
+    cmd.y_vel = 0;
+    for (int i = 0; i < 100; i++) {
+        generateKeyPress(SDL_KEYDOWN, constants::KEY_INCREASE_VEL);
+    }
+
+    generateKeyPress(SDL_KEYDOWN, SDLK_DOWN);
+    cmd = keyboard.GetRobotCommand();
+    EXPECT_NEAR(std::abs(cmd.x_vel), constants::MAX_ROBOT_VELOCITY, 0.5); // TODO make this step size
+
+    cmd.y_vel = 0;
+    for (int i = 0; i < 100; i++) {
+        generateKeyPress(SDL_KEYDOWN, constants::KEY_DECREASE_VEL);
+    }
+
+    generateKeyPress(SDL_KEYDOWN, SDLK_DOWN);
+    cmd = keyboard.GetRobotCommand();
+    EXPECT_EQ(std::abs(cmd.x_vel), constants::MIN_ROBOT_VELOCITY);
+}
+
+
+
 

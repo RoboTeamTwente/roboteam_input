@@ -113,9 +113,9 @@ void KeyboardManager::handleSDLEvents(SDL_Event const & e) {
 
 
     if (currentVel > constants::MAX_ROBOT_VELOCITY) currentVel = constants::MAX_ROBOT_VELOCITY;
-    if (currentVel < 0) currentVel = 0;
+    if (currentVel < constants::MIN_ROBOT_VELOCITY) currentVel = constants::MIN_ROBOT_VELOCITY;
     if (currentKick > roboteam_msgs::RobotCommand::MAX_KICKER_VEL) currentKick = roboteam_msgs::RobotCommand::MAX_KICKER_VEL;
-    if (currentKick < 0) currentKick = 0;
+    if (currentKick < constants::MIN_KICKER_VEL) currentKick = constants::MIN_KICKER_VEL;
     if (currentGenevaState<constants::MIN_GENEVA_STATE) currentGenevaState = constants::MIN_GENEVA_STATE;
     if (currentGenevaState>constants::MAX_GENEVA_STATE) currentGenevaState = constants::MAX_GENEVA_STATE;
 
