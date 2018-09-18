@@ -104,6 +104,7 @@ catkin_add_gtest(input_test
         test/KeyboardManagerTest.cpp
         src/keyboard/keyboard_manager.h
         src/keyboard/keyboard_manager.cpp
+        test/JoystickTest.cpp
         )
 
 target_link_libraries(input_test ${catkin_LIBRARIES}

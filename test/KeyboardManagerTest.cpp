@@ -32,8 +32,6 @@ TEST(KeyboardTest, It_toggles_the_dribbler) {
     EXPECT_TRUE(keyboard.GetRobotCommand().dribbler == prevDribblerVal);
 }
 
-
-
 TEST(KeyboardTest, It_strafes) {
     // Strafe right
     generateKeyPress(SDL_KEYDOWN, SDLK_x);
