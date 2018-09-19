@@ -6,16 +6,18 @@
 #include <keyboard/keyboard_manager.h>
 #include <SDL.h>
 
-void simulateKeyPress(KeyboardManager * keyboard, Uint32 type, SDL_Keycode key, Uint8 repeat = 0) {
-    SDL_Event test_event;
-    test_event.type = type;
-    test_event.key.repeat = repeat;
-    test_event.key.keysym.sym = key;
-    keyboard->handleSDLEvents(test_event);
+void simulateKeyPress(KeyboardManager * keyboard, Uint32 type, SDL_Keycode key, Uint8 repeat = 0, int amountOfPresses = 1) {
+    for (int i = 0; i < amountOfPresses; i++) {
+        SDL_Event test_event;
+        test_event.type = type;
+        test_event.key.repeat = repeat;
+        test_event.key.keysym.sym = key;
+        keyboard->handleSDLEvents(test_event);
+    }
 }
 
-roboteam_msgs::RobotCommand getCommandForKeyPress(KeyboardManager * keyboard, Uint32 type, SDL_Keycode key, Uint8 repeat = 0) {
-    simulateKeyPress(keyboard, type, key, repeat);
+roboteam_msgs::RobotCommand getCommandForKeyPress(KeyboardManager * keyboard, Uint32 type, SDL_Keycode key, Uint8 repeat = 0, int amountOfPresses = 1) {
+    simulateKeyPress(keyboard, type, key, repeat, amountOfPresses);
     return keyboard->GetRobotCommand();
 }
 
@@ -88,17 +90,11 @@ TEST(KeyboardTest, It_changes_kick_and_chip_force) {
     KeyboardManager keyboard;
     roboteam_msgs::RobotCommand cmd;
 
-    for (int i = 0; i < 100; i++) {
-        simulateKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_INCREASE_KICK);
-    }
-
+    simulateKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_INCREASE_KICK, 0, 100);
     cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_KICK);
     EXPECT_EQ(cmd.kicker_vel, roboteam_msgs::RobotCommand::MAX_KICKER_VEL);
 
-    for (int i = 0; i < 100; i++) {
-        simulateKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_DECREASE_KICK);
-    }
-
+    simulateKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_DECREASE_KICK, 0, 100);
     cmd = keyboard.GetRobotCommand();
     EXPECT_EQ(cmd.chipper_vel, constants::MIN_KICKER_VEL);
 }
@@ -195,17 +191,11 @@ TEST(KeyboardTest, It_drives_forward_and_backward) {
     EXPECT_GT(cmd.x_vel, velocityDifference);
 
     // test limits
-    for (int i = 0; i < 100; i++) {
-        getCommandForKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_INCREASE_VEL);
-    }
-
+    getCommandForKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_INCREASE_VEL, 0, 100);
     cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, SDLK_DOWN);
     EXPECT_NEAR(std::abs(cmd.x_vel), constants::MAX_ROBOT_VELOCITY, 0.5); // TODO make this step size
 
-    for (int i = 0; i < 100; i++) {
-        simulateKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_DECREASE_VEL);
-    }
-
+    simulateKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_DECREASE_VEL, 0, 100);
     cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, SDLK_DOWN);
     EXPECT_EQ(std::abs(cmd.x_vel), constants::MIN_ROBOT_VELOCITY);
 }
