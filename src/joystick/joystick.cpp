@@ -144,7 +144,7 @@ struct JoyEntry {
 
     void receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg) {
         this->resetTimer();             // Reset the timer
-        ///this->msg_prev = this->msg;     // Store the current message in previous message
+        this->msg_prev = this->msg;     // Store the current message in previous message
         this->msg = *msg;               // Only store the newest messages
     }
 
@@ -333,23 +333,31 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy con
 
     // ==== Set Kicker ====//
     btn = Xbox360Controller::RightBumper;
-    //std::cout << "Current: " << getVal(msg.buttons, xbox360mapping.at(btn)) << " - Previous: " << getVal(msg_prev.buttons, xbox360mapping.at(btn)) << std::endl;
-    if(getVal(msg.buttons, xbox360mapping.at(btn))){            // If RightBumper is pressed
-        if(!getVal(msg_prev.buttons, xbox360mapping.at(btn)))   // Check whether it was not already pressed before
-            command.kicker = true;                              // If not, activate kicker
-            command.kicker_forced = true;						// Don't wait for ball sensor, kick immediately
+    if(getVal(msg.buttons, xbox360mapping.at(btn))) {
+        std::cout << "Current: " << getVal(msg.buttons, xbox360mapping.at(btn)) << " - Previous: "
+                  << getVal(msg_prev.buttons, xbox360mapping.at(btn)) << std::endl;
+    }
+
+    if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {            // If RightBumper is pressed
+        if (!getVal(msg_prev.buttons, xbox360mapping.at(btn)) > 0) { // Check whether it was not already pressed before
+            command.kicker = true;                                  // If not, activate kicker
+            command.kicker_forced = true;                            // Don't wait for ball sensor, kick immediately
+            std::cout << "KICK!" << std::endl;
+        }
     }
 
     /* ==== Set Chipper ====*/
-    /* If not pressed yet, returns 0. If not pressed anymore, returns 1. If pressed halfway, returns -0 */
-    double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
-    // If right trigger has not been pressed since starting the program
-    if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
-        RightTriggerVal = 1;
+
+    if(getVal(msg.buttons, xbox360mapping.at(btn)) != getVal(msg_prev.buttons, xbox360mapping.at(btn))) {
+        std::cout << "Current: " << getVal(msg.buttons, xbox360mapping.at(btn)) << " - Previous: " << getVal(msg_prev.buttons, xbox360mapping.at(btn)) << std::endl;
     }
-    if(RightTriggerVal < 0.9) {        						    // If RightBumper is pressed
-        command.chipper = true;                                 // activate chipper
-        command.chipper_forced = true;							// Don't wait for ball sensor, chip immediately
+
+    btn = Xbox360Controller::RightTrigger;
+    if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
+        if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
+            command.chipper = true;
+            command.chipper_forced = true;
+        }
     }
 
     // ==== Set kicker velocity
