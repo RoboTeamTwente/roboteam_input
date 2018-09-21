@@ -333,32 +333,26 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy con
 
     // ==== Set Kicker ====//
     btn = Xbox360Controller::RightBumper;
-    if(getVal(msg.buttons, xbox360mapping.at(btn))) {
-        std::cout << "Current: " << getVal(msg.buttons, xbox360mapping.at(btn)) << " - Previous: "
-                  << getVal(msg_prev.buttons, xbox360mapping.at(btn)) << std::endl;
-    }
-
     if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {            // If RightBumper is pressed
         if (!getVal(msg_prev.buttons, xbox360mapping.at(btn)) > 0) { // Check whether it was not already pressed before
             command.kicker = true;                                  // If not, activate kicker
             command.kicker_forced = true;                            // Don't wait for ball sensor, kick immediately
-            std::cout << "KICK!" << std::endl;
         }
     }
 
     /* ==== Set Chipper ====*/
+    double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
+    double RightTriggerVal_prev = getVal(msg_prev.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
 
-    if(getVal(msg.buttons, xbox360mapping.at(btn)) != getVal(msg_prev.buttons, xbox360mapping.at(btn))) {
-        std::cout << "Current: " << getVal(msg.buttons, xbox360mapping.at(btn)) << " - Previous: " << getVal(msg_prev.buttons, xbox360mapping.at(btn)) << std::endl;
+    // If right trigger has not been pressed since starting the program
+    if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
+        RightTriggerVal = 1;
     }
-
-    btn = Xbox360Controller::RightTrigger;
-    if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
-        if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
-            command.chipper = true;
-            command.chipper_forced = true;
-        }
+    if(RightTriggerVal < 0.9) {        						// If RightBumper is pressed
+        command.chipper = true;                                 // activate chipper
+        command.chipper_forced = true;							// Don't wait for ball sensor, chip immediately
     }
+    /* ==================== */
 
     // ==== Set kicker velocity
     if(command.kicker || command.chipper) {
