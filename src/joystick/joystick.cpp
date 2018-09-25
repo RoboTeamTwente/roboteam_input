@@ -191,20 +191,6 @@ struct JoyEntry {
             msg_prev = boost::none;
 
     }
-
-    void press(Xbox360Controller btn){
-        btnState[btn] = true;
-    }
-    void release(Xbox360Controller btn){
-        btnState[btn] = false;
-    }
-    bool isPressed(Xbox360Controller btn) {
-        try {
-            return btnState.at(btn);
-        }catch(std::out_of_range ex){
-            return false;
-        }
-    }
 };
 
 
