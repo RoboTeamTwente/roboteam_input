@@ -19,7 +19,7 @@
 #include "joystick_enums.h"
 #include "joystick_profiles.h"
 
-const int NUM_CONTROLLERS = 2;
+const int NUM_CONTROLLERS = 4;
 const int TIMEOUT_SECONDS = 1;
 
 /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node */
@@ -230,51 +230,57 @@ void handleButtons(JoyEntry &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy 
 
         /* === Check if profile has to be modified === */
         btn = Xbox360Controller::Start;
-        if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){                // If Start is pressed
-            if(!getVal(msg_prev.buttons, xbox360mapping.at(btn)) > 0){      // Check whether it was not already pressed before
+        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {                // If Start is pressed
+            if (!getVal(msg_prev.buttons, xbox360mapping.at(btn)) >
+                0) {      // Check whether it was not already pressed before
                 joy.nextJoystickProfile();                                  // If not, switch to next profile
             }
         }
 
         /* === Check if control mode has to be modified === */
         btn = Xbox360Controller::Back;
-        if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){                // If Back is pressed
-            if(!getVal(msg_prev.buttons, xbox360mapping.at(btn)) > 0){      // Check whether it was not already pressed before
+        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {                // If Back is pressed
+            if (!getVal(msg_prev.buttons, xbox360mapping.at(btn)) >
+                0) {      // Check whether it was not already pressed before
                 joy.switchControlMode();                                    // If not, switch to next control mode
             }
         }
 
         /* ==== Check if ID has to be switched lower ==== */
         btn = Xbox360Controller::DpadY;
-        if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){                   // If DpadDown is pressed
-            if(!getVal(msg_prev.axes, xbox360mapping.at(btn)) > 0) {        // Check whether it was not already pressed before
+        if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {                   // If DpadDown is pressed
+            if (!getVal(msg_prev.axes, xbox360mapping.at(btn)) >
+                0) {        // Check whether it was not already pressed before
                 joy.setRobotID((joy.robotID + 1) % 16);                     // If not, increment id
             }
-        }else
-        if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){                   // If DpadUp is pressed
-            if(getVal(msg_prev.axes, xbox360mapping.at(btn)) == -0) {       // Check whether it was not already pressed before
+        } else if (getVal(msg.axes, xbox360mapping.at(btn)) < 0) {                   // If DpadUp is pressed
+            if (getVal(msg_prev.axes, xbox360mapping.at(btn)) ==
+                -0) {       // Check whether it was not already pressed before
                 joy.setRobotID((joy.robotID + 15) % 16);                     // If not, decrement id
             }
         }
+    }
 
+    /* ==== Rotate kicker (Geneva Drive) if X is pressed ==== */
+    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))) {
+        std::cout<<getVal(msg.axes, xbox360mapping.at(Xbox360Controller::DpadX))<<std::endl;
         /* ==== Rotate kicker (Geneva Drive)==== */
         btn = Xbox360Controller::DpadX;
         if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){                   // If DpadLeft is pressed
-            if(!getVal(msg_prev.axes, xbox360mapping.at(btn)) > 0) {        // Check whether it was not already pressed before
-                if(!joy.genevaState == 1) {                                 // Check whether the state is not already minimal
-                    joy.genevaState--;                                      // Decrease geneva state by 1
+            if(getVal(msg_prev.axes, xbox360mapping.at(btn)) == -0) {        // Check whether it was not already pressed before
+                if(joy.genevaState < 5) {                                 // Check whether the state is not already minimal
+                    joy.genevaState++;                                      // Increase geneva state by 1
                 }
             }
         }else
         if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){                   // If DpadLeft is pressed
-            if(!getVal(msg_prev.axes, xbox360mapping.at(btn)) < 0) {        // Check whether it was not already pressed before
-                if(!joy.genevaState == 5) {                                 // Check whether the state is not already minimal
-                    joy.genevaState++;                                      // Increase geneva state by 1
+            if(getVal(msg_prev.axes, xbox360mapping.at(btn)) == -0) {        // Check whether it was not already pressed before
+                if(joy.genevaState > 1) {                                 // Check whether the state is not already minimal
+                    joy.genevaState--;                                      // Decrease geneva state by 1
                 }
             }
         }
     }
-    /* ==== End DPad control ==== */
 
     /* ==== Set rotation offset to current rotation ==== */
     btn = Xbox360Controller::B;
@@ -348,15 +354,15 @@ roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy con
     if(RightTriggerVal == 0 && !std::signbit(RightTriggerVal)) {
         RightTriggerVal = 1;
     }
-    if(RightTriggerVal < 0.9) {        						// If RightBumper is pressed
-        command.chipper = true;                                 // activate chipper
+    if(RightTriggerVal < 0.9 && RightTriggerVal_prev > 0.9) {   // If RightBumper is pressed and was not before
+        command.chipper = true;                                 // Activate chipper
         command.chipper_forced = true;							// Don't wait for ball sensor, chip immediately
     }
     /* ==================== */
 
     // ==== Set kicker velocity
     if(command.kicker || command.chipper) {
-        command.kicker_vel = 2.0;
+        command.kicker_vel = 5.0;
     }
 
     // ==== Set dribbler ====
