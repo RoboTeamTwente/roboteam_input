@@ -36,7 +36,6 @@ const struct joystick_profile profile_quick {
     .ROTATION_MULTIPLIER = 1.5,   // Mutliplier      - Sets rotation speed/multiplier for relative mode
 };
 
-#define NUM_JOYSTICK_PROFILES 3;
-joystick_profile joystick_profiles[3] = { profile_default, profile_slow, profile_quick };
+#define NUM_JOYSTICK_PROFILES 3
 
 #endif //ROBOTEAM_INPUT_JOYSTICK_PROFILES_H

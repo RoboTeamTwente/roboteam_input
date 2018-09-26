@@ -59,8 +59,10 @@ include_directories(
 add_executable(joystick
         src/joystick/joystick.cpp
         src/joystick/joystick_enums.h
-        src/joystick/joystick_profiles.h
+        src/joystick/joystick_manager.h
+        src/joystick/joystick_manager.cpp
         src/constants.h)
+
 target_link_libraries(joystick ${catkin_LIBRARIES})
 add_dependencies(joystick ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
