@@ -7,15 +7,13 @@
 #include "roboteam_utils/Vector2.h"
 #include "roboteam_utils/world_analysis.h"
 #include "joystick_enums.h"
-#include "joystick_profiles.h"
 #include "sensor_msgs/Joy.h"
 #include <boost/process.hpp>
 #include "ros/ros.h"
+#include "joystick_profiles.h"
 
 #ifndef ROBOTEAM_JOYSTICK_MANAGER_H
 #define ROBOTEAM_JOYSTICK_MANAGER_H
-
-joystick_profile joystick_profiles[NUM_JOYSTICK_PROFILES] = { profile_default, profile_slow, profile_quick };
 
 /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node */
 const std::map<Xbox360Controller, int> xbox360mapping = {
@@ -47,6 +45,19 @@ const std::map<Xbox360Controller, int> xbox360mapping = {
 
 
 struct JoyEntry {
+    JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {
+        this->profile = profile_default;
+    }
+    void init();
+    void setToInput(std::string newInput);
+    int getTimer();
+    void resetTimer();
+    void receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg);
+    void setRobotID(int id);
+    void nextJoystickProfile();
+    void switchControlMode();
+    void setControllerConnected(bool isConnected);
+
     ::boost::optional<::boost::process::child> process;     // Holds the joy_node process
     ::boost::optional<ros::Subscriber> subscriber;          // Subscribes to the joy_node topic (/js0, /js1 etc etc)
     ::boost::optional<sensor_msgs::Joy> msg;                // Holds the latest message from the joy_node topic
@@ -67,80 +78,12 @@ struct JoyEntry {
     // ==== Variables related to driving ==== //
     std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
     rtt::Vector2 speedState;                         // Holds the x-speed and y-speed of the robot.
-    int genevaState;                            // Holds the state of the Geneva Drive. Range is [-2,2]
+    int genevaState;                            // Holds the state of the Geneva Drive. Range is [1,5]
     bool controllerConnected = true;            // Holds if the corresponding controller is connected
     float orientation = 0.0;                    // Holds the last orientation of the robot
     float orientationOffset = 0.0;              // Holds the orientation offset
     bool useRelativeControl = true;             // Holds the control mode (relative or absolute)
-
     static int intSupplier;                     // Supplies ids to new instances of JoyEntry
-
-    JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {
-        this->profile = profile_default;
-    }
-
-    void init();
-
-    void setToInput(std::string newInput);
-
-    // Get the time between now and the last received message
-    int getTimer(){
-        return std::time(0) - timeLastReceived;
-    }
-    // Reset the timer to now
-    void resetTimer(){
-        timeLastReceived = std::time(0);
-    }
-
-    void receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg) {
-        this->resetTimer();             // Reset the timer
-        this->msg_prev = this->msg;     // Store the current message in previous message
-        this->msg = *msg;               // Only store the newest messages
-    }
-
-    void setRobotID(int id){
-        ROS_INFO_STREAM(input << " connected to robot " << id);
-        robotID = id;
-        // Reset robot velocity
-        speedState.x = 0;
-        speedState.y = 0;
-        // Reset geneva drive
-        genevaState = 3;
-        // Reset the orientation
-        orientation = 0.0;
-    }
-
-    void nextJoystickProfile(){
-        profileCounter = (profileCounter + 1) % NUM_JOYSTICK_PROFILES;
-        profile = joystick_profiles[profileCounter];
-        ROS_INFO_STREAM(input << " using profile " << profileCounter << " " << joystick_profiles[profileCounter].DESCRIPTION);
-    }
-
-    void switchControlMode(){
-        if(useRelativeControl) {
-            useRelativeControl = false;
-            ROS_INFO_STREAM(input << " using control mode absolute (Fifa)");
-        } else {
-            useRelativeControl = true;
-            ROS_INFO_STREAM(input << " using control mode relative (Call of Duty)");
-        }
-    }
-
-    void setControllerConnected(bool isConnected){
-        if(isConnected && !controllerConnected)
-            ROS_INFO_STREAM(input << ": Controller reconnected");
-
-        if(!isConnected && controllerConnected)
-            ROS_WARN_STREAM(input << ": Controller disconnected");
-
-        controllerConnected = isConnected;
-
-        // Clear message if controller is disconnected, to make the robot stop
-        if(!controllerConnected)
-            msg = boost::none;
-        msg_prev = boost::none;
-
-    }
 };
 
 #endif  //ROBOTEAM_JOYSTICK_MANAGER_H

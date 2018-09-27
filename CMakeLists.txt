@@ -60,6 +60,7 @@ add_executable(joystick
         src/joystick/joystick.cpp
         src/joystick/joystick_enums.h
         src/joystick/joystick_manager.h
+        src/joystick/joystick_profiles.h
         src/joystick/joystick_manager.cpp
         src/constants.h)
 

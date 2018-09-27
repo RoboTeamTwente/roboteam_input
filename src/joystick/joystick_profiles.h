@@ -1,7 +1,3 @@
-//
-// Created by roboteampc on 23-11-17.
-//
-
 #ifndef ROBOTEAM_INPUT_JOYSTICK_PROFILES_H
 #define ROBOTEAM_INPUT_JOYSTICK_PROFILES_H
 
