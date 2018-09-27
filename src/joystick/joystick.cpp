@@ -7,8 +7,8 @@
 
 #include "joystick_manager.h"
 
-int JoyEntry::intSupplier = 0;                  // Set first joystick id to 0
-std::array<JoyEntry, NUM_CONTROLLERS> joys;     // Create array of NUM_CONTROLLER elements of JoyEntries
+int joySticks::intSupplier = 0;                  // Set first joystick id to 0
+std::array<joySticks, NUM_CONTROLLERS> joys;     // Create array of NUM_CONTROLLER elements of JoyEntries
 
 void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr& cmd){
     int size = cmd->status.size();
@@ -56,15 +56,15 @@ int main(int argc, char **argv) {
             // If joystick message is received
             if(joy.msg) {
                 // If previous joystick message is received
-                if (joy.msg_prev) {
+                if (joy.previousMsg) {
                     // Handle buttons such as ID and control mode switching, and the geneva drive
-                    handleButtons(joy, *joy.msg, *joy.msg_prev);
+                    handleButtons(joy, *joy.msg, *joy.previousMsg);
                     // Create and publish robot command
-                    auto command = makeRobotCommand(joy, *joy.msg, *joy.msg_prev);
+                    auto command = makeRobotCommand(joy, *joy.msg, *joy.previousMsg);
                     command.use_angle = static_cast<unsigned char>(true);
                     pub.publish(command);
                 } else
-                    joy.msg_prev = joy.msg;
+                    joy.previousMsg = joy.msg;
             }
         }
         fps.sleep();

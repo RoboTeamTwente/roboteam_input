@@ -48,8 +48,9 @@ const std::map<Xbox360Controller, int> xbox360mapping = {
 // ======================================================================== //
 
 
-struct JoyEntry {
-    JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {
+class joySticks {
+public:
+    joySticks() : robotID{intSupplier}, MY_ID{intSupplier++} {
         this->profile = profile_children;
     }
     void init();
@@ -65,7 +66,7 @@ struct JoyEntry {
     ::boost::optional<::boost::process::child> process;     // Holds the joy_node process
     ::boost::optional<ros::Subscriber> subscriber;          // Subscribes to the joy_node topic (/js0, /js1 etc etc)
     ::boost::optional<sensor_msgs::Joy> msg;                // Holds the latest message from the joy_node topic
-    ::boost::optional<sensor_msgs::Joy> msg_prev;           // Holds the latest message from the joy_node topic
+    ::boost::optional<sensor_msgs::Joy> previousMsg;           // Holds the latest message from the joy_node topic
 
     std::string input;                          // js0
     int robotID;                                // 1 - 16
@@ -85,12 +86,12 @@ struct JoyEntry {
     float orientation = 0.0;                    // Holds the last orientation of the robot
     float orientationOffset = 0.0;              // Holds the orientation offset
     bool useRelativeControl = true;             // Holds the control mode (relative or absolute)
-    static int intSupplier;                     // Supplies ids to new instances of JoyEntry
+    static int intSupplier;                     // Supplies ids to new instances of joySticks
 };
 
 template<typename T> T getVal(const std::vector<T> &values, int index);
-void handleButtons(JoyEntry &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy const &msg_prev);
-roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy const &msg_prev);
+void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy const &previousMsg);
+roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy const &previousMsg);
 void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr& cmd);
 
 #endif  //ROBOTEAM_JOYSTICK_MANAGER_H
