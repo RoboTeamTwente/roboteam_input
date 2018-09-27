@@ -11,9 +11,13 @@
 #include <boost/process.hpp>
 #include "ros/ros.h"
 #include "joystick_profiles.h"
+#include "diagnostic_msgs/DiagnosticArray.h"
 
 #ifndef ROBOTEAM_JOYSTICK_MANAGER_H
 #define ROBOTEAM_JOYSTICK_MANAGER_H
+
+const int NUM_CONTROLLERS = 4;  // 4 is the max a joystick receiver can connect to
+const int TIMEOUT_SECONDS = 1;
 
 /* Maps the buttons, triggers, and sticks from the Xbox 360 controller to the messages received from joy_node */
 const std::map<Xbox360Controller, int> xbox360mapping = {
@@ -29,13 +33,13 @@ const std::map<Xbox360Controller, int> xbox360mapping = {
 
         // Buttons
         { Xbox360Controller::A, 0 },
-        { Xbox360Controller::B, 1 },    // Turn counterclockwise
-        { Xbox360Controller::X, 2 },    // Turn clockwise
-        { Xbox360Controller::Y, 3 },    // Enables ID switching and profile switching as long as it is pressed
-        { Xbox360Controller::LeftBumper   , 4  },  // Dribbler
-        { Xbox360Controller::RightBumper  , 5  },  // Kicker
-        { Xbox360Controller::Back         , 6  },  // +Y : Switch control mode (Fifa/CoD)
-        { Xbox360Controller::Start        , 7  },  // +Y : Switch profile
+        { Xbox360Controller::B, 1 },                // Turn counterclockwise
+        { Xbox360Controller::X, 2 },                // Turn clockwise
+        { Xbox360Controller::Y, 3 },                // Enables ID switching and profile switching as long as it is pressed
+        { Xbox360Controller::LeftBumper   , 4  },   // Dribbler
+        { Xbox360Controller::RightBumper  , 5  },   // Kicker
+        { Xbox360Controller::Back         , 6  },   // +Y : Switch control mode (Fifa/CoD)
+        { Xbox360Controller::Start        , 7  },   // +Y : Switch profile
         { Xbox360Controller::Guide        , 8  },
         { Xbox360Controller::LeftStick    , 9  },
         { Xbox360Controller::RightStick   , 10 }
@@ -46,7 +50,7 @@ const std::map<Xbox360Controller, int> xbox360mapping = {
 
 struct JoyEntry {
     JoyEntry() : robotID{intSupplier}, MY_ID{intSupplier++} {
-        this->profile = profile_default;
+        this->profile = profile_children;
     }
     void init();
     void setToInput(std::string newInput);
@@ -71,13 +75,11 @@ struct JoyEntry {
     int profileCounter;
 
     // ==== Variables related to automatically running a RoleNode
-    std::time_t timeLastReceived = std::time(0);// added by anouk
     ::boost::optional<::boost::process::child> processAuto;         // Holds the joy_node auto process
     bool dribblerOn = false;
 
     // ==== Variables related to driving ==== //
-    std::map<Xbox360Controller, bool> btnState; // Holds the state of the buttons (pressed, not pressed)
-    rtt::Vector2 speedState;                         // Holds the x-speed and y-speed of the robot.
+    rtt::Vector2 speedState;                    // Holds the x-speed and y-speed of the robot.
     int genevaState;                            // Holds the state of the Geneva Drive. Range is [1,5]
     bool controllerConnected = true;            // Holds if the corresponding controller is connected
     float orientation = 0.0;                    // Holds the last orientation of the robot
@@ -85,5 +87,10 @@ struct JoyEntry {
     bool useRelativeControl = true;             // Holds the control mode (relative or absolute)
     static int intSupplier;                     // Supplies ids to new instances of JoyEntry
 };
+
+template<typename T> T getVal(const std::vector<T> &values, int index);
+void handleButtons(JoyEntry &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy const &msg_prev);
+roboteam_msgs::RobotCommand makeRobotCommand(JoyEntry &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy const &msg_prev);
+void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr& cmd);
 
 #endif  //ROBOTEAM_JOYSTICK_MANAGER_H
