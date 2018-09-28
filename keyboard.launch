@@ -17,6 +17,6 @@
     <param name="robot8/robotType" type="string" value="$(arg robot_type)" />
     <param name="robot9/robotType" type="string" value="$(arg robot_type)" />
 
-    <node pkg="roboteam_input" type="keyboard_controller" name="keyboard_controller" output="screen" />
+    <node pkg="roboteam_input" type="keyboard" name="keyboard" output="screen" />
     <node pkg="roboteam_robothub" type="roboteam_robothub" name="robothub" output="screen" />
 </launch>

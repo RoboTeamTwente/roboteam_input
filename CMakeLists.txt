@@ -18,11 +18,11 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## Need to install:
-# sudo apt-get install libsdl2-dev
+# sudo apt-get install libsdl2-dev libsdl2-ttf-dev
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(SDL2)
-include_directories(${SDL2_INCLUDE_DIR})
-
+find_package(SDL2TTF)
+include_directories(${SDL2_INCLUDE_DIR} ${SDL2TTF_INCLUDE_DIR})
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -56,25 +56,41 @@ include_directories(
 
 
 
-add_executable(joystick_input src/joystick_input.cpp src/joystick_enums.h src/joystick_profiles.h)
-target_link_libraries(joystick_input ${catkin_LIBRARIES})
-add_dependencies(joystick_input ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(joystick
+        src/joystick/joystick.cpp
+        src/joystick/joystick_enums.h
+        src/joystick/joystick_profiles.h
+        src/constants.h)
+target_link_libraries(joystick ${catkin_LIBRARIES})
+add_dependencies(joystick ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 if (${SDL2_FOUND})
+  if (${SDL2TTF_FOUND})
 
     MESSAGE("-- Building keyboard controller with SDL2")
 
-    add_executable(keyboard_controller 
-        src/keyboard_controller.cpp
+    add_executable(keyboard
+        src/keyboard/keyboard.cpp
+        src/keyboard/keyboard_manager.h
+        src/keyboard/keyboard_manager.cpp
+        src/input_interface.h
+        src/input_interface.cpp
+            src/constants.h
         )
-    target_link_libraries( keyboard_controller 
+    target_link_libraries( keyboard
         ${catkin_LIBRARIES}
         ${SDL2_LIBRARY}
+        ${SDL2TTF_LIBRARY}
+
         )
-    add_dependencies(keyboard_controller 
-        ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+    add_dependencies(keyboard
+        ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
         )
+else (${SDL2TTF_FOUND})
+MESSAGE("-- SDL2TTF not found, so cannot build keyboard_controller! Have you installed SDL2TTF?")
+
+endif(${SDL2TTF_FOUND})
 
 else (${SDL2_FOUND})
 
@@ -82,17 +98,18 @@ else (${SDL2_FOUND})
 
 endif(${SDL2_FOUND})
 
-
-
-
 #############
 ## Testing ##
 #############
-
 catkin_add_gtest(input_test
-    test/main.cpp
-	test/SimpleTest.cpp
-)
-target_link_libraries(input_test ${catkin_LIBRARIES})
+        test/main.cpp
+        test/KeyboardManagerTest.cpp
+        src/keyboard/keyboard_manager.h
+        src/keyboard/keyboard_manager.cpp
+        test/JoystickTest.cpp
+        src/constants.h
+        )
 
-
+target_link_libraries(input_test ${catkin_LIBRARIES}
+        ${SDL2_LIBRARY}
+        ${SDL2TTF_LIBRARY})

@@ -7,3 +7,9 @@
 
 .idea/
 cmake-build-debug/
+
+# Python environment for Clion
+venv/
+
+# Mac OS files
+.DS_Store
