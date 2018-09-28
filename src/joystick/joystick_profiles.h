@@ -22,6 +22,14 @@ const struct joystick_profile profile_default {
     .ROTATION_MULTIPLIER = 1,   // Mutliplier      - Sets rotation speed/multiplier for relative mode
 };
 
+const struct joystick_profile profile_children {
+		// VALUE RANGE      - DESCRIPTION
+		.SPEED_MIN = 0.3,           // (0, SPEED_MAX)   - Sets minimum speed. speed < SPEED_MIN = no movement
+		.SPEED_MAX = 1.3,             // (SPEED_MIN, ->)  - Sets maximum speed. speed > SPEED_MAX = SPEED_MAX
+		.DESCRIPTION = "CHILDREN",
+		.ROTATION_MULTIPLIER = 1,   // Mutliplier      - Sets rotation speed/multiplier for relative mode
+};
+
 const struct joystick_profile profile_slow {
     .SPEED_MIN = 0.3,
     .SPEED_MAX = 1.0,
@@ -36,7 +44,7 @@ const struct joystick_profile profile_quick {
     .ROTATION_MULTIPLIER = 1.5,   // Mutliplier      - Sets rotation speed/multiplier for relative mode
 };
 
-#define NUM_JOYSTICK_PROFILES 3;
-joystick_profile joystick_profiles[3] = { profile_default, profile_slow, profile_quick };
+#define NUM_JOYSTICK_PROFILES 4;
+joystick_profile joystick_profiles[4] = { profile_default, profile_children, profile_slow, profile_quick };
 
 #endif //ROBOTEAM_INPUT_JOYSTICK_PROFILES_H
