@@ -7,8 +7,8 @@
 
 #include "joystick_manager.h"
 
-int joySticks::intSupplier = 0;                  // Set first joystick id to 0
-std::array<joySticks, NUM_CONTROLLERS> joys;     // Create array of NUM_CONTROLLER elements of JoyEntries
+int joySticks::intSupplier = 0;
+std::array<joySticks, NUM_CONTROLLERS> joys;
 
 void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr& cmd){
     int size = cmd->status.size();

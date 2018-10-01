@@ -61,7 +61,7 @@ void joySticks::receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg) {
 }
 
 // ==== Set robot ID and initialize speed and geneva state ==== //
-void joySticks::setRobotID(int id){
+void joySticks::initializeRobot(int id){
     ROS_INFO_STREAM(input << " connected to robot " << id);
     robotID = id;
     // Reset robot velocity
@@ -125,52 +125,52 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
 
         /* === Check if profile has to be modified === */
         btn = Xbox360Controller::Start;
-        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {                // If Start is pressed
+        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
             if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) >
-                0) {      // Check whether it was not already pressed before
-                joy.nextJoystickProfile();                                  // If not, switch to next profile
+                0) {
+                joy.nextJoystickProfile();
             }
         }
 
         /* === Check if control mode has to be modified === */
         btn = Xbox360Controller::Back;
-        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {                // If Back is pressed
+        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
             if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) >
                 0) {      // Check whether it was not already pressed before
-                joy.switchControlMode();                                    // If not, switch to next control mode
+                joy.switchControlMode();
             }
         }
 
         /* ==== Check if ID has to be switched lower ==== */
         btn = Xbox360Controller::DpadY;
-        if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {                   // If DpadDown is pressed
+        if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {
             if (!getVal(previousMsg.axes, xbox360mapping.at(btn)) >
-                0) {        // Check whether it was not already pressed before
-                joy.setRobotID((joy.robotID + 1) % 16);                     // If not, increment id
+                0) {
+                joy.initializeRobot((joy.robotID + 1) % 16);
             }
-        } else if (getVal(msg.axes, xbox360mapping.at(btn)) < 0) {                   // If DpadUp is pressed
+        } else if (getVal(msg.axes, xbox360mapping.at(btn)) < 0) {
             if (getVal(previousMsg.axes, xbox360mapping.at(btn)) ==
-                -0) {       // Check whether it was not already pressed before
-                joy.setRobotID((joy.robotID + 15) % 16);                     // If not, decrement id
+                -0) {
+                joy.initializeRobot((joy.robotID + 15) % 16);
             }
         }
     }
 
     /* ==== Rotate kicker (Geneva Drive) if X is pressed ==== */
-    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))) {      // Press X to rotate the Geneva Drive
+    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))) {
         /* ==== Rotate kicker (Geneva Drive)==== */
         btn = Xbox360Controller::DpadX;
-        if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){                   // If DpadRight is pressed
-            if(getVal(previousMsg.axes, xbox360mapping.at(btn)) == -0) {       // Check whether it was not already pressed before
-                if(joy.genevaState < 5) {                                   // Check whether the state is not already maximum
-                    joy.genevaState++;                                      // Increase geneva state by 1
+        if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){
+            if(getVal(previousMsg.axes, xbox360mapping.at(btn)) == -0) {
+                if(joy.genevaState < 5) {
+                    joy.genevaState++;
                 }
             }
         }else
-        if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){                   // If DpadLeft is pressed
-            if(getVal(previousMsg.axes, xbox360mapping.at(btn)) == -0) {       // Check whether it was not already pressed before
-                if(joy.genevaState > 1) {                                   // Check whether the state is not already minimal
-                    joy.genevaState--;                                      // Decrease geneva state by 1
+        if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){
+            if(getVal(previousMsg.axes, xbox360mapping.at(btn)) == -0) {
+                if(joy.genevaState > 1) {
+                    joy.genevaState--;
                 }
             }
         }
@@ -178,15 +178,13 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
 
     /* ==== Set rotation offset to current rotation ==== */
     btn = Xbox360Controller::B;
-    if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){                // If B is pressed
-        if(!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0){      // Check whether it was not already pressed before
-            joy.orientationOffset += joy.orientation;                   // Add current orientation to orientation offset
-            joy.orientation = 0;                                        // Set current orientation to 0
+    if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){
+        if(!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0){
+            joy.orientationOffset += joy.orientation;
+            joy.orientation = 0;
             ROS_INFO_STREAM(joy.input << " : orientation offset = " << (joy.orientation / (16 * M_PI)));
         }
     }
-    /* ================================================== */
-
 }
 
 // ==== Make all robot commands and return them ==== //
@@ -198,15 +196,15 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
 
     /* ==== Driving x and y ==== */
     rtt::Vector2 driveVector;
-    driveVector.x = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY)); // Get x velocity from joystick
-    driveVector.y = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX)); // Get y velocity from joystick
+    driveVector.x = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
+    driveVector.y = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
     if(joy.useRelativeControl){
-        driveVector = driveVector.rotate(joy.orientation / 16);                         // Rotate velocity according to orientation
+        driveVector = driveVector.rotate(joy.orientation / 16);
     }else{
-        driveVector = driveVector.rotate((joy.orientationOffset) / 16);                 // Rotate velocity according to the orientation offset
+        driveVector = driveVector.rotate((joy.orientationOffset) / 16);
     }
-    command.x_vel = joy.profile.SPEED_MAX * driveVector.x;                              // Set x velocity
-    command.y_vel = joy.profile.SPEED_MAX * driveVector.y;                              // Set y velocity
+    command.x_vel = joy.profile.SPEED_MAX * driveVector.x;
+    command.y_vel = joy.profile.SPEED_MAX * driveVector.y;
 
     // ==== Orientation ==== //
     float orientationX = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX));
@@ -214,30 +212,30 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     rtt::Vector2 orientation(orientationY, orientationX);
 
     // This checks which control mode to use (absolute (FIFA) or relative (Call of Duty))
-    if(!joy.useRelativeControl) {                                               // Checks whether control mode is absolute
-        if (0.9 < orientation.length())                                         // Check whether the orientation stick is pushed far enough
-            joy.orientation = orientation.angle() * 16;                         // Set new orientation
-        command.w = joy.orientation + joy.orientationOffset;                    // Write orientation command and adjust for offset
-    } else {                                                                    // If not, control mode is relative
+    if(!joy.useRelativeControl) {
+        if (0.9 < orientation.length())
+            joy.orientation = orientation.angle() * 16;
+        command.w = joy.orientation + joy.orientationOffset;
+    } else {
         if (0.9 < fabs(orientationX));
         joy.orientation += orientationX * joy.profile.ROTATION_MULTIPLIER;
         if (16 * M_PI < joy.orientation)
-            joy.orientation -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+            joy.orientation -= 32 * M_PI;
         if (joy.orientation < -16 * M_PI)
-            joy.orientation += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+            joy.orientation += 32 * M_PI;
         command.w = joy.orientation;
     }
 
     // Make sure the angle is within range [-16 Pi, 16 Pi]
-    if(16 * M_PI < command.w) command.w -= 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
-    if(command.w <-16 * M_PI) command.w += 32 * M_PI;       // Bring rotation into range [-16 Pi, 16 Pi]
+    if(16 * M_PI < command.w) command.w -= 32 * M_PI;
+    if(command.w <-16 * M_PI) command.w += 32 * M_PI;
 
     // ==== Set Kicker ====//
     btn = Xbox360Controller::RightBumper;
-    if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {            // If RightBumper is pressed
-        if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0) { // Check whether it was not already pressed before
-            command.kicker = true;                                  // If not, activate kicker
-            command.kicker_forced = true;                            // Don't wait for ball sensor, kick immediately
+    if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
+        if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0) {
+            command.kicker = true;
+            command.kicker_forced = true;
         }
     }
 
@@ -263,9 +261,9 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
 
     // ==== Set dribbler ====
     btn = Xbox360Controller::LeftBumper;
-    if(getVal(msg.buttons, xbox360mapping.at(btn))){            // Check whether the Left Bumper is pressed
-        if(!getVal(previousMsg.buttons, xbox360mapping.at(btn))){  // Check whether it was not already pressed before
-            joy.dribblerOn = !joy.dribblerOn;                   // If not, activate dribbler
+    if(getVal(msg.buttons, xbox360mapping.at(btn))){
+        if(!getVal(previousMsg.buttons, xbox360mapping.at(btn))){
+            joy.dribblerOn = !joy.dribblerOn;
         }
     }
     command.dribbler = joy.dribblerOn;

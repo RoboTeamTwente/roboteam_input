@@ -1,11 +1,7 @@
 #include "roboteam_msgs/RobotCommand.h"
 #include "roboteam_utils/Vector2.h"
-#include "roboteam_msgs/RoleDirective.h"
 #include "roboteam_msgs/World.h"
-#include "roboteam_msgs/GeometryFieldSize.h"
-#include "roboteam_msgs/GeometryData.h"
 #include "roboteam_utils/Vector2.h"
-#include "roboteam_utils/world_analysis.h"
 #include "joystick_enums.h"
 #include "sensor_msgs/Joy.h"
 #include <boost/process.hpp>
@@ -55,10 +51,8 @@ public:
     }
     void init();
     void setToInput(std::string newInput);
-    int getTimer();
-    void resetTimer();
     void receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg);
-    void setRobotID(int id);
+    void initializeRobot(int id);
     void nextJoystickProfile();
     void switchControlMode();
     void setControllerConnected(bool isConnected);
@@ -66,7 +60,7 @@ public:
     ::boost::optional<::boost::process::child> process;     // Holds the joy_node process
     ::boost::optional<ros::Subscriber> subscriber;          // Subscribes to the joy_node topic (/js0, /js1 etc etc)
     ::boost::optional<sensor_msgs::Joy> msg;                // Holds the latest message from the joy_node topic
-    ::boost::optional<sensor_msgs::Joy> previousMsg;           // Holds the latest message from the joy_node topic
+    ::boost::optional<sensor_msgs::Joy> previousMsg;        // Holds the latest message from the joy_node topic
 
     std::string input;                          // js0
     int robotID;                                // 1 - 16
@@ -75,18 +69,19 @@ public:
     joystick_profile profile;
     int profileCounter;
 
-    // ==== Variables related to automatically running a RoleNode
-    ::boost::optional<::boost::process::child> processAuto;         // Holds the joy_node auto process
+    /* Variables related to automatically running a RoleNode */
     bool dribblerOn = false;
 
     // ==== Variables related to driving ==== //
-    rtt::Vector2 speedState;                    // Holds the x-speed and y-speed of the robot.
-    int genevaState;                            // Holds the state of the Geneva Drive. Range is [1,5]
-    bool controllerConnected = true;            // Holds if the corresponding controller is connected
-    float orientation = 0.0;                    // Holds the last orientation of the robot
-    float orientationOffset = 0.0;              // Holds the orientation offset
-    bool useRelativeControl = true;             // Holds the control mode (relative or absolute)
-    static int intSupplier;                     // Supplies ids to new instances of joySticks
+    rtt::Vector2 speedState;
+    int genevaState;
+    bool controllerConnected = true;
+    // orientation holds the current orientation of the robot relative to the orientation offset.
+    // The offset is relative to the initial 0 point.
+    float orientation = 0.0;
+    float orientationOffset = 0.0;
+    bool useRelativeControl = true;
+    static int intSupplier;
 };
 
 template<typename T> T getVal(const std::vector<T> &values, int index);
