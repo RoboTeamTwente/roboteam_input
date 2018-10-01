@@ -19,10 +19,11 @@ const struct joystick_profile profile_default {
 };
 
 const struct joystick_profile profile_children {
-        .SPEED_MIN = 0.3,           // (0, SPEED_MAX)   - Sets minimum speed. speed < SPEED_MIN = no movement
-        .SPEED_MAX = 1.3,             // (SPEED_MIN, ->)  - Sets maximum speed. speed > SPEED_MAX = SPEED_MAX
-        .DESCRIPTION = "CHILDREN",
-        .ROTATION_MULTIPLIER = 1,   // Mutliplier      - Sets rotation speed/multiplier for relative mode
+		// VALUE RANGE      - DESCRIPTION
+		.SPEED_MIN = 0.3,           // (0, SPEED_MAX)   - Sets minimum speed. speed < SPEED_MIN = no movement
+		.SPEED_MAX = 1.3,             // (SPEED_MIN, ->)  - Sets maximum speed. speed > SPEED_MAX = SPEED_MAX
+		.DESCRIPTION = "CHILDREN",
+		.ROTATION_MULTIPLIER = 1,   // Mutliplier      - Sets rotation speed/multiplier for relative mode
 };
 
 const struct joystick_profile profile_slow {
