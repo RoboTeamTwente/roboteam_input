@@ -1,7 +1,3 @@
-//
-// Created by roboteampc on 23-11-17.
-//
-
 #ifndef ROBOTEAM_INPUT_JOYSTICK_PROFILES_H
 #define ROBOTEAM_INPUT_JOYSTICK_PROFILES_H
 
@@ -44,7 +40,6 @@ const struct joystick_profile profile_quick {
     .ROTATION_MULTIPLIER = 1.5,   // Mutliplier      - Sets rotation speed/multiplier for relative mode
 };
 
-#define NUM_JOYSTICK_PROFILES 4;
-joystick_profile joystick_profiles[4] = { profile_default, profile_children, profile_slow, profile_quick };
+#define NUM_JOYSTICK_PROFILES 4
 
 #endif //ROBOTEAM_INPUT_JOYSTICK_PROFILES_H

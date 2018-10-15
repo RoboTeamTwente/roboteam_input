@@ -3,7 +3,13 @@
 //
 
 #include <gtest/gtest.h>
+#include "sensor_msgs/Joy.h"
 
-TEST(JoystickTest, it_exists) {
+sensor_msgs::Joy fakeMsg;
+
+TEST(JoystickTest, it_fakes_a_joymsg) {
+    fakeMsg.axes.push_back(3);
+    sensor_msgs::Joy msg = fakeMsg;
+
     ASSERT_TRUE(true);
 }
