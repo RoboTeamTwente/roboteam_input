@@ -8,6 +8,7 @@
 #include "ros/ros.h"
 #include "joystick_profiles.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
+#include <boost/optional.hpp>
 
 #ifndef ROBOTEAM_JOYSTICK_MANAGER_H
 #define ROBOTEAM_JOYSTICK_MANAGER_H
@@ -56,6 +57,8 @@ public:
     void nextJoystickProfile();
     void switchControlMode();
     void setControllerConnected(bool isConnected);
+    void setAutoPlay(std::string role);
+    void stopAutoPlay();
 
     ::boost::optional<::boost::process::child> process;     // Holds the joy_node process
     ::boost::optional<ros::Subscriber> subscriber;          // Subscribes to the joy_node topic (/js0, /js1 etc etc)
@@ -82,6 +85,11 @@ public:
     float orientationOffset = 0.0;
     bool useRelativeControl = true;
     static int intSupplier;
+
+    // Settings for autoPlay
+    bool autoPlay = false;
+    boost::optional<boost::process::child> processAuto;
+
 };
 
 template<typename T> T getVal(const std::vector<T> &values, int index);

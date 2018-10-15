@@ -108,6 +108,23 @@ void joySticks::setControllerConnected(bool isConnected){
 
 }
 
+void joySticks::setAutoPlay(std::string role) {
+    boost::filesystem::path pathRosrun = boost::process::search_path("rosrun");
+    std::vector<std::string> args;
+    args.emplace_back("roboteam_tactics");
+    args.emplace_back("TestX");
+    args.emplace_back("rtt_jelle/" + role);
+    args.emplace_back("ROBOT_ID=" + boost::lexical_cast<std::string>(this->robotID));
+
+    processAuto = boost::process::child(pathRosrun, args);
+}
+
+void joySticks::stopAutoPlay() {
+    ROS_INFO_STREAM("Joy " << this->robotID << " terminating process..");
+    processAuto->terminate();
+    processAuto = boost::none;
+}
+
 template<typename T> T getVal(const std::vector<T> &values, int index) {
     if(index < values.size()) {
         return values[index];
@@ -126,7 +143,7 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
         /* === Check if profile has to be modified === */
         btn = Xbox360Controller::Start;
         if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
-            if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) >
+            if (getVal(previousMsg.buttons, xbox360mapping.at(btn)) <=
                 0) {
                 joy.nextJoystickProfile();
             }
@@ -135,7 +152,7 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
         /* === Check if control mode has to be modified === */
         btn = Xbox360Controller::Back;
         if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
-            if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) >
+            if (getVal(previousMsg.buttons, xbox360mapping.at(btn)) <=
                 0) {      // Check whether it was not already pressed before
                 joy.switchControlMode();
             }
@@ -144,7 +161,7 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
         /* ==== Check if ID has to be switched lower ==== */
         btn = Xbox360Controller::DpadY;
         if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {
-            if (!getVal(previousMsg.axes, xbox360mapping.at(btn)) >
+            if (getVal(previousMsg.axes, xbox360mapping.at(btn)) <=
                 0) {
                 joy.initializeRobot((joy.robotID + 1) % 16);
             }
@@ -183,6 +200,32 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
             joy.orientationOffset += joy.orientation;
             joy.orientation = 0;
             ROS_INFO_STREAM(joy.input << " : orientation offset = " << (joy.orientation / (16 * M_PI)));
+        }
+    }
+
+    // Toggle autoPlay
+    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::A)) > 0) {
+
+        if (!joy.autoPlay) {
+            // Check for left bumper, and toggle autoKeeper
+            if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) > 0) {
+                if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) <= 0) {
+                    joy.autoPlay = true;
+                    joy.setAutoPlay("DemoKeeper");
+                }
+            } else
+
+            // Check for left trigger, and toggle autoAttacker
+            if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) > 0) {
+                if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) <= 0) {
+                    joy.autoPlay = true;
+                    joy.setAutoPlay("DemoAttacker");
+                }
+            }
+        } else
+            if(getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) <= 0) {
+                joy.autoPlay = false;
+                joy.stopAutoPlay();
         }
     }
 }
