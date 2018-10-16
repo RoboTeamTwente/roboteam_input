@@ -223,40 +223,37 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
         }
     }
 
-    // Stop getting ball
-    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::A)) <= 0) {
-        if(getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) > 0) {
-            if(joy.gettingBall) {
-                joy.stopAutoPlay();
-            }
-        }
-    }
-
     // Toggle autoPlay
     if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::A)) > 0) {
-        if (!joy.gettingBall && !joy.autoPlay) {
-            joy.getBall();
+        if (!joy.autoPlay) {
             // Check for left bumper, and toggle autoKeeper
             if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) > 0) {
                 if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) <= 0) {
-                    joy.stopAutoPlay();
                     joy.setAutoPlay("DemoKeeper");
                 }
             } else
 
-                // Check for left trigger, and toggle autoAttacker
+            // Check for left trigger, and toggle autoAttacker
             if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) > 0) {
                 if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) <= 0) {
-                    joy.stopAutoPlay();
                     joy.setAutoPlay("DemoAttacker");
                 }
             }
-        } else if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) <= 0) {
-            joy.stopAutoPlay();
+        } else
+            if(getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) <= 0) {
+                joy.stopAutoPlay();
         }
     }
 
-
+    // Toggle getBall
+    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::RightStick)) > 0) {
+        if(getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::RightStick)) <= 0) {
+            joy.getBall();
+        }
+    } else
+        if(joy.gettingBall) {
+            joy.stopAutoPlay();
+        }
 }
 
 // ==== Make all robot commands and return them ==== //

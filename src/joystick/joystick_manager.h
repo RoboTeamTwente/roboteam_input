@@ -93,9 +93,8 @@ public:
 
     // Settings for autoPlay and getBall
     bool autoPlay = false;
-    boost::optional<boost::process::child> processAuto;
     bool gettingBall = false;
-
+    boost::optional<boost::process::child> processAuto;
 
 };
 
