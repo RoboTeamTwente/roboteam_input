@@ -59,10 +59,13 @@ int main(int argc, char **argv) {
                 if (joy.previousMsg) {
                     // Handle buttons such as ID and control mode switching, and the geneva drive
                     handleButtons(joy, *joy.msg, *joy.previousMsg);
-                    // Create and publish robot command
-                    auto command = makeRobotCommand(joy, *joy.msg, *joy.previousMsg);
-                    command.use_angle = static_cast<unsigned char>(true);
-                    pub.publish(command);
+                    // Create and publish robot command if not on auto play
+                    if (!joy.autoPlay) {
+                        auto command = makeRobotCommand(joy, *joy.msg, *joy.previousMsg);
+                        command.use_angle = static_cast<unsigned char>(true);
+                        pub.publish(command);
+                    }
+                    joy.previousMsg = joy.msg;
                 } else
                     joy.previousMsg = joy.msg;
             }

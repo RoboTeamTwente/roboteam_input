@@ -117,12 +117,14 @@ void joySticks::setAutoPlay(std::string role) {
     args.emplace_back("ROBOT_ID=" + boost::lexical_cast<std::string>(this->robotID));
 
     processAuto = boost::process::child(pathRosrun, args);
+    this->autoPlay = true;
 }
 
 void joySticks::stopAutoPlay() {
     ROS_INFO_STREAM("Joy " << this->robotID << " terminating process..");
     processAuto->terminate();
     processAuto = boost::none;
+    this->autoPlay = false;
 }
 
 template<typename T> T getVal(const std::vector<T> &values, int index) {
@@ -158,17 +160,19 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
             }
         }
 
-        /* ==== Check if ID has to be switched lower ==== */
-        btn = Xbox360Controller::DpadY;
-        if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {
-            if (getVal(previousMsg.axes, xbox360mapping.at(btn)) <=
-                0) {
-                joy.initializeRobot((joy.robotID + 1) % 16);
-            }
-        } else if (getVal(msg.axes, xbox360mapping.at(btn)) < 0) {
-            if (getVal(previousMsg.axes, xbox360mapping.at(btn)) ==
-                -0) {
-                joy.initializeRobot((joy.robotID + 15) % 16);
+        // Check if ID has to be switched, only when auto play is off
+        if(!joy.autoPlay) {
+            btn = Xbox360Controller::DpadY;
+            if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {
+                if (getVal(previousMsg.axes, xbox360mapping.at(btn)) <=
+                    0) {
+                    joy.initializeRobot((joy.robotID + 1) % 16);
+                }
+            } else if (getVal(msg.axes, xbox360mapping.at(btn)) < 0) {
+                if (getVal(previousMsg.axes, xbox360mapping.at(btn)) ==
+                    -0) {
+                    joy.initializeRobot((joy.robotID + 15) % 16);
+                }
             }
         }
     }
@@ -210,7 +214,6 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
             // Check for left bumper, and toggle autoKeeper
             if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) > 0) {
                 if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) <= 0) {
-                    joy.autoPlay = true;
                     joy.setAutoPlay("DemoKeeper");
                 }
             } else
@@ -218,13 +221,11 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
             // Check for left trigger, and toggle autoAttacker
             if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) > 0) {
                 if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) <= 0) {
-                    joy.autoPlay = true;
                     joy.setAutoPlay("DemoAttacker");
                 }
             }
         } else
             if(getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) <= 0) {
-                joy.autoPlay = false;
                 joy.stopAutoPlay();
         }
     }
@@ -331,8 +332,6 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
         // If speed is above SPEED_MAX
     else if(joy.profile.SPEED_MAX < command.x_vel) { command.x_vel =  joy.profile.SPEED_MAX; }
     /* ================================ */
-
-    joy.previousMsg = *joy.msg;
 
     return command;
 }

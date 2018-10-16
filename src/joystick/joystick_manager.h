@@ -65,7 +65,11 @@ public:
     ::boost::optional<sensor_msgs::Joy> msg;                // Holds the latest message from the joy_node topic
     ::boost::optional<sensor_msgs::Joy> previousMsg;        // Holds the latest message from the joy_node topic
 
-    std::string input;                          // js0
+    std::string input;
+
+    void setInput(const std::string &input);
+
+    // js0
     int robotID;                                // 1 - 16
     const int MY_ID;                            // Holds the unique id
 
