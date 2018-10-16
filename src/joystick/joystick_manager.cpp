@@ -116,7 +116,7 @@ void joySticks::setAutoPlay(std::string role) {
     args.emplace_back("rtt_jelle/" + role);
     args.emplace_back("ROBOT_ID=" + boost::lexical_cast<std::string>(this->robotID));
 
-    processAuto = boost::process::child(pathRosrun, args);
+    this->processAuto = boost::process::child(pathRosrun, args);
     this->autoPlay = true;
 }
 
@@ -125,6 +125,22 @@ void joySticks::stopAutoPlay() {
     processAuto->terminate();
     processAuto = boost::none;
     this->autoPlay = false;
+    this->gettingBall = false;
+}
+
+void joySticks::getBall() {
+    ROS_INFO_STREAM(this->input << " skill is now running");
+    boost::filesystem::path pathRosrun = boost::process::search_path("rosrun");
+    std::vector<std::string> args;
+    args.emplace_back("roboteam_tactics");
+    args.emplace_back("TestX");
+    args.emplace_back("rtt_jelle/DemoAttacker");
+    args.emplace_back("int:ROBOT_ID=" + std::to_string(this->robotID));
+    args.emplace_back("bool:GetBall_A_dribblerOff=false");
+    args.emplace_back("bool:GetBall_A_passOn=false");
+
+    this->processAuto = boost::process::child(pathRosrun, args);
+    this->gettingBall = true;
 }
 
 template<typename T> T getVal(const std::vector<T> &values, int index) {
@@ -207,28 +223,40 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
         }
     }
 
+    // Stop getting ball
+    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::A)) <= 0) {
+        if(getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) > 0) {
+            if(joy.gettingBall) {
+                joy.stopAutoPlay();
+            }
+        }
+    }
+
     // Toggle autoPlay
     if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::A)) > 0) {
-
-        if (!joy.autoPlay) {
+        if (!joy.gettingBall && !joy.autoPlay) {
+            joy.getBall();
             // Check for left bumper, and toggle autoKeeper
             if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) > 0) {
                 if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::LeftBumper)) <= 0) {
+                    joy.stopAutoPlay();
                     joy.setAutoPlay("DemoKeeper");
                 }
             } else
 
-            // Check for left trigger, and toggle autoAttacker
+                // Check for left trigger, and toggle autoAttacker
             if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) > 0) {
                 if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::RightBumper)) <= 0) {
+                    joy.stopAutoPlay();
                     joy.setAutoPlay("DemoAttacker");
                 }
             }
-        } else
-            if(getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) <= 0) {
-                joy.stopAutoPlay();
+        } else if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) <= 0) {
+            joy.stopAutoPlay();
         }
     }
+
+
 }
 
 // ==== Make all robot commands and return them ==== //

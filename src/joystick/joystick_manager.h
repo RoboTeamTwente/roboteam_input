@@ -59,6 +59,7 @@ public:
     void setControllerConnected(bool isConnected);
     void setAutoPlay(std::string role);
     void stopAutoPlay();
+    void getBall();
 
     ::boost::optional<::boost::process::child> process;     // Holds the joy_node process
     ::boost::optional<ros::Subscriber> subscriber;          // Subscribes to the joy_node topic (/js0, /js1 etc etc)
@@ -90,9 +91,11 @@ public:
     bool useRelativeControl = true;
     static int intSupplier;
 
-    // Settings for autoPlay
+    // Settings for autoPlay and getBall
     bool autoPlay = false;
     boost::optional<boost::process::child> processAuto;
+    bool gettingBall = false;
+
 
 };
 
