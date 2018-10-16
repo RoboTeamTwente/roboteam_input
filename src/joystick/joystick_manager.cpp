@@ -5,7 +5,7 @@ std::array<joystick_profile, NUM_JOYSTICK_PROFILES> joystick_profiles = {profile
 // ==== Initialize joystick ==== //
 void joySticks::init() {
     ROS_INFO_STREAM(input << " connected to robot " << robotID);
-    setToInput("js" + std::to_string(MY_ID));
+    setToInput("js" + std::to_string(joystickID));
 }
 
 // ==== Create subscriber for the joystick ==== //

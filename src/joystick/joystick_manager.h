@@ -47,7 +47,7 @@ const std::map<Xbox360Controller, int> xbox360mapping = {
 
 class joySticks {
 public:
-    joySticks() : robotID{intSupplier}, MY_ID{intSupplier++} {
+    joySticks() : robotID{intSupplier}, joystickID{intSupplier++} {
         this->profile = profile_children;
     }
     void init();
@@ -67,12 +67,8 @@ public:
     ::boost::optional<sensor_msgs::Joy> previousMsg;        // Holds the latest message from the joy_node topic
 
     std::string input;
-
-    void setInput(const std::string &input);
-
-    // js0
-    int robotID;                                // 1 - 16
-    const int MY_ID;                            // Holds the unique id
+    int robotID;
+    const int joystickID;
 
     joystick_profile profile;
     int profileCounter;
