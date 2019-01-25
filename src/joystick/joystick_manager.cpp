@@ -182,7 +182,7 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
         if(!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0){
             joy.orientationOffset += joy.orientation;
             joy.orientation = 0;
-            ROS_INFO_STREAM(joy.input << " : orientation offset = " << (joy.orientation / (16 * M_PI)));
+            ROS_INFO_STREAM(joy.input << " : orientation offset = " << (joy.orientation / (M_PI)));
         }
     }
 }
@@ -199,9 +199,9 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     driveVector.x = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickY));
     driveVector.y = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
     if(joy.useRelativeControl){
-        driveVector = driveVector.rotate(joy.orientation / 16);
+        driveVector = driveVector.rotate(joy.orientation);
     }else{
-        driveVector = driveVector.rotate((joy.orientationOffset) / 16);
+        driveVector = driveVector.rotate((joy.orientationOffset));
     }
     command.x_vel = joy.profile.SPEED_MAX * driveVector.x;
     command.y_vel = joy.profile.SPEED_MAX * driveVector.y;
@@ -214,21 +214,21 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     // This checks which control mode to use (absolute (FIFA) or relative (Call of Duty))
     if(!joy.useRelativeControl) {
         if (0.9 < orientation.length())
-            joy.orientation = orientation.angle() * 16;
+            joy.orientation = orientation.angle();
         command.w = joy.orientation + joy.orientationOffset;
     } else {
         if (0.9 < fabs(orientationX));
         joy.orientation += orientationX * joy.profile.ROTATION_MULTIPLIER;
-        if (16 * M_PI < joy.orientation)
-            joy.orientation -= 32 * M_PI;
-        if (joy.orientation < -16 * M_PI)
-            joy.orientation += 32 * M_PI;
+        if (M_PI < joy.orientation)
+            joy.orientation -= 2 * M_PI;
+        if (joy.orientation < -M_PI)
+            joy.orientation += 2 * M_PI;
         command.w = joy.orientation;
     }
 
     // Make sure the angle is within range [-16 Pi, 16 Pi]
-    if(16 * M_PI < command.w) command.w -= 32 * M_PI;
-    if(command.w <-16 * M_PI) command.w += 32 * M_PI;
+    if(M_PI < command.w) command.w -= 2 * M_PI;
+    if(command.w <-M_PI) command.w += 2 * M_PI;
 
     // ==== Set Kicker ====//
     btn = Xbox360Controller::RightBumper;

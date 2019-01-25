@@ -5,6 +5,7 @@
 #include "joystick_enums.h"
 #include "sensor_msgs/Joy.h"
 #include <boost/process.hpp>
+#include <boost/optional.hpp>
 #include "ros/ros.h"
 #include "joystick_profiles.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
