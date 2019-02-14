@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
 
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
+    ros::Publisher ai_pub = n.advertise<roboteam_msgs::RobotCommand>("ai_message", 10);
 
     // Listen to diagnostics
     ros::Subscriber sub = n.subscribe<diagnostic_msgs::DiagnosticArray>("diagnostics", 1, &handleDiagnostics);
@@ -59,10 +60,12 @@ int main(int argc, char **argv) {
                 if (joy.previousMsg) {
                     // Handle buttons such as ID and control mode switching, and the geneva drive
                     handleButtons(joy, *joy.msg, *joy.previousMsg);
-                    // Create and publish robot command
-                    auto command = makeRobotCommand(joy, *joy.msg, *joy.previousMsg);
-                    command.use_angle = static_cast<unsigned char>(true);
-                    pub.publish(command);
+                    if (!joy.autoPlay) {
+                        // Create and publish robot command
+                        auto command = makeRobotCommand(joy, *joy.msg, *joy.previousMsg);
+                        command.use_angle = static_cast<unsigned char>(true);
+                        pub.publish(command);
+                    }
                 } else
                     joy.previousMsg = joy.msg;
             }

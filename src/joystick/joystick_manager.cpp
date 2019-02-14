@@ -108,6 +108,10 @@ void joySticks::setControllerConnected(bool isConnected){
 
 }
 
+void joySticks::setAutoPlay(bool reserve) {
+    // Publish demo_message with int32 id and bool reserve
+}
+
 template<typename T> T getVal(const std::vector<T> &values, int index) {
     if(index < values.size()) {
         return values[index];
@@ -120,71 +124,87 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
 
     Xbox360Controller btn;
 
-    /* ==== DPad control is off by default. While Y is pressed it is enabled ==== */
-    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::Y))) {
+    // Disable all robot joystick input when autoPlay is on, except for switching autoPlay off
+    if(!joy.autoPlay) {
 
-        /* === Check if profile has to be modified === */
-        btn = Xbox360Controller::Start;
-        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
-            if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) >
-                0) {
-                joy.nextJoystickProfile();
-            }
-        }
+        /* ==== DPad control is off by default. While Y is pressed it is enabled ==== */
+        if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::Y))) {
 
-        /* === Check if control mode has to be modified === */
-        btn = Xbox360Controller::Back;
-        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
-            if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) >
-                0) {      // Check whether it was not already pressed before
-                joy.switchControlMode();
-            }
-        }
-
-        /* ==== Check if ID has to be switched lower ==== */
-        btn = Xbox360Controller::DpadY;
-        if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {
-            if (!getVal(previousMsg.axes, xbox360mapping.at(btn)) >
-                0) {
-                joy.initializeRobot((joy.robotID + 1) % 16);
-            }
-        } else if (getVal(msg.axes, xbox360mapping.at(btn)) < 0) {
-            if (getVal(previousMsg.axes, xbox360mapping.at(btn)) ==
-                -0) {
-                joy.initializeRobot((joy.robotID + 15) % 16);
-            }
-        }
-    }
-
-    /* ==== Rotate kicker (Geneva Drive) if X is pressed ==== */
-    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))) {
-        /* ==== Rotate kicker (Geneva Drive)==== */
-        btn = Xbox360Controller::DpadX;
-        if(getVal(msg.axes, xbox360mapping.at(btn)) > 0){
-            if(getVal(previousMsg.axes, xbox360mapping.at(btn)) == -0) {
-                if(joy.genevaState < 5) {
-                    joy.genevaState++;
+            /* === Check if profile has to be modified === */
+            btn = Xbox360Controller::Start;
+            if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
+                if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) >
+                    0) {
+                    joy.nextJoystickProfile();
                 }
             }
-        }else
-        if(getVal(msg.axes, xbox360mapping.at(btn)) < 0){
-            if(getVal(previousMsg.axes, xbox360mapping.at(btn)) == -0) {
-                if(joy.genevaState > 1) {
-                    joy.genevaState--;
+
+            /* === Check if control mode has to be modified === */
+            btn = Xbox360Controller::Back;
+            if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
+                if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) >
+                    0) {      // Check whether it was not already pressed before
+                    joy.switchControlMode();
+                }
+            }
+
+            /* ==== Check if ID has to be switched lower ==== */
+            btn = Xbox360Controller::DpadY;
+            if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {
+                if (!getVal(previousMsg.axes, xbox360mapping.at(btn)) >
+                    0) {
+                    joy.initializeRobot((joy.robotID + 1) % 16);
+                }
+            } else if (getVal(msg.axes, xbox360mapping.at(btn)) < 0) {
+                if (getVal(previousMsg.axes, xbox360mapping.at(btn)) ==
+                    -0) {
+                    joy.initializeRobot((joy.robotID + 15) % 16);
                 }
             }
         }
+
+        /* ==== Rotate kicker (Geneva Drive) if X is pressed ==== */
+        if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))) {
+            /* ==== Rotate kicker (Geneva Drive)==== */
+            btn = Xbox360Controller::DpadX;
+            if (getVal(msg.axes, xbox360mapping.at(btn)) > 0) {
+                if (getVal(previousMsg.axes, xbox360mapping.at(btn)) == -0) {
+                    if (joy.genevaState < 5) {
+                        joy.genevaState++;
+                    }
+                }
+            } else if (getVal(msg.axes, xbox360mapping.at(btn)) < 0) {
+                if (getVal(previousMsg.axes, xbox360mapping.at(btn)) == -0) {
+                    if (joy.genevaState > 1) {
+                        joy.genevaState--;
+                    }
+                }
+            }
+        }
+
+        /* ==== Set rotation offset to current rotation ==== */
+        btn = Xbox360Controller::B;
+        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
+            if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0) {
+                joy.orientationOffset += joy.orientation;
+                joy.orientation = 0;
+                ROS_INFO_STREAM(joy.input << " : orientation offset = " << (joy.orientation / (M_PI)));
+            }
+        }
+
     }
 
-    /* ==== Set rotation offset to current rotation ==== */
-    btn = Xbox360Controller::B;
+    btn = Xbox360Controller ::A;
     if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){
-        if(!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0){
-            joy.orientationOffset += joy.orientation;
-            joy.orientation = 0;
-            ROS_INFO_STREAM(joy.input << " : orientation offset = " << (joy.orientation / (M_PI)));
+        if(getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0){
+            joy.autoPlayTick++;
+            if (joy.autoPlayTick == joy.autoPlayTicks) {
+                joy.autoPlay = !joy.autoPlay;
+                joy.setAutoPlay(joy.autoPlay);
+                std::cout << "Autoplay: " << joy.autoPlay << std::endl;
+            }
         }
-    }
+    } else joy.autoPlayTick = 0;
 }
 
 // ==== Make all robot commands and return them ==== //

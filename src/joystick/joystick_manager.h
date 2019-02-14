@@ -57,6 +57,7 @@ public:
     void nextJoystickProfile();
     void switchControlMode();
     void setControllerConnected(bool isConnected);
+    void setAutoPlay(bool reserve);
 
     ::boost::optional<::boost::process::child> process;     // Holds the joy_node process
     ::boost::optional<ros::Subscriber> subscriber;          // Subscribes to the joy_node topic (/js0, /js1 etc etc)
@@ -83,6 +84,10 @@ public:
     float orientationOffset = 0.0;
     bool useRelativeControl = true;
     static int intSupplier;
+    bool autoPlay = false;
+
+    int autoPlayTick = 0;
+    int autoPlayTicks = 20;
 };
 
 template<typename T> T getVal(const std::vector<T> &values, int index);

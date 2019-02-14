@@ -55,7 +55,6 @@ include_directories(
 )
 
 
-
 add_executable(joystick
         src/joystick/joystick.cpp
         src/joystick/joystick_enums.h
