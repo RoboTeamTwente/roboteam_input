@@ -9,6 +9,8 @@
 #include "ros/ros.h"
 #include "joystick_profiles.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
+#include "roboteam_msgs/DemoRobot.h"
+
 
 #ifndef ROBOTEAM_JOYSTICK_MANAGER_H
 #define ROBOTEAM_JOYSTICK_MANAGER_H

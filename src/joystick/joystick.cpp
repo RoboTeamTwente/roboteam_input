@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
                     // Handle buttons such as ID and control mode switching, and the geneva drive
                     handleButtons(joy, *joy.msg, *joy.previousMsg);
                     if (joy.toggleAutoPlay) {
-                        roboteam_msgs::DemoInfo demoInfo;
+                        roboteam_msgs::DemoRobot demoInfo;
                         demoInfo.id = joy.robotID;
                         demoInfo.reserve = joy.autoPlay;
                         demo_pub.publish(demoInfo);
