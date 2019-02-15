@@ -108,10 +108,6 @@ void joySticks::setControllerConnected(bool isConnected){
 
 }
 
-void joySticks::setAutoPlay(bool reserve) {
-    // Publish demo_message with int32 id and bool reserve
-}
-
 template<typename T> T getVal(const std::vector<T> &values, int index) {
     if(index < values.size()) {
         return values[index];
@@ -200,8 +196,8 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
             joy.autoPlayTick++;
             if (joy.autoPlayTick == joy.autoPlayTicks) {
                 joy.autoPlay = !joy.autoPlay;
-                joy.setAutoPlay(joy.autoPlay);
-                std::cout << "Autoplay: " << joy.autoPlay << std::endl;
+                joy.toggleAutoPlay = true;
+                ROS_INFO_STREAM(joy.input << " : autoPlay " << (joy.autoPlay ? "on" : "off"));
             }
         }
     } else joy.autoPlayTick = 0;
@@ -266,7 +262,6 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     // The RightTriggerVal is a range from -1 to 1, where -1 is fully pressed and 1 is fully unpressed
     if(RightTriggerVal <= -0.9) {
         if(RightTriggerVal_prev > -0.9) {
-            std::cout<<"CHIP!"<<std::endl;
             command.chipper = true;
             command.chipper_forced = true;
         }

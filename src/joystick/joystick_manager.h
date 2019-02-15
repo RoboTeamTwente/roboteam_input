@@ -88,6 +88,7 @@ public:
 
     int autoPlayTick = 0;
     int autoPlayTicks = 20;
+    bool toggleAutoPlay = false;
 };
 
 template<typename T> T getVal(const std::vector<T> &values, int index);
