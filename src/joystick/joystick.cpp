@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
-    ros::Publisher demo_pub = n.advertise<roboteam_msgs::RobotCommand>("demo_info", 10);
+    ros::Publisher demo_pub = n.advertise<roboteam_msgs::DemoRobot>("demo_info", 10);
 
     // Listen to diagnostics
     ros::Subscriber sub = n.subscribe<diagnostic_msgs::DiagnosticArray>("diagnostics", 1, &handleDiagnostics);
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
                     if (joy.toggleAutoPlay) {
                         roboteam_msgs::DemoRobot demoInfo;
                         demoInfo.id = joy.robotID;
-                        demoInfo.reserve = joy.autoPlay;
+                        demoInfo.reserve = !joy.autoPlay;
                         demo_pub.publish(demoInfo);
                         joy.toggleAutoPlay = false;
                     }
