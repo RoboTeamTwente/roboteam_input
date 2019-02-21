@@ -190,17 +190,36 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
 
     }
 
-    btn = Xbox360Controller ::A;
-    if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0){
-        if(getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0){
-            joy.autoPlayTick++;
-            if (joy.autoPlayTick == joy.autoPlayTicks) {
+    // Turn on autoPlay if A is held for a number of ticks (autoPlayTicks)
+    if(getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::A)) > 0){
+        if(getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) > 0){
+            if (!joy.autoPlay) {
+                joy.autoPlayTick++;
+                if (joy.autoPlayTick >= joy.autoPlayTicks) {
+                    joy.autoPlay = true;
+                    joy.toggleAutoPlay = true;
+                }
+            }
+
+        }
+    // Turn off autoPlay if A is released
+    } else if (getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::A)) > 0) {
+        joy.autoPlay = false;
+        joy.autoPlayTick = 0;
+        joy.toggleAutoPlay = true;
+    }
+
+    // Toggle autoPlay if X and Back are pressed
+    if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::X))) {
+        btn = Xbox360Controller::Back;
+        if (getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
+            if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0) {
                 joy.autoPlay = !joy.autoPlay;
                 joy.toggleAutoPlay = true;
-                ROS_INFO_STREAM(joy.input << " : autoPlay " << (joy.autoPlay ? "on" : "off"));
+                std::cout << "Toggle!" << std::endl;
             }
         }
-    } else joy.autoPlayTick = 0;
+    }
 }
 
 // ==== Make all robot commands and return them ==== //
@@ -219,8 +238,8 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     }else{
         driveVector = driveVector.rotate((joy.orientationOffset));
     }
-    command.x_vel = joy.profile.SPEED_MAX * driveVector.x;
-    command.y_vel = joy.profile.SPEED_MAX * driveVector.y;
+    command.x_vel = static_cast<float>(joy.profile.SPEED_MAX * driveVector.x);
+    command.y_vel = static_cast<float>(joy.profile.SPEED_MAX * driveVector.y);
 
     // ==== Orientation ==== //
     float orientationX = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightStickX));
@@ -230,7 +249,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     // This checks which control mode to use (absolute (FIFA) or relative (Call of Duty))
     if(!joy.useRelativeControl) {
         if (0.9 < orientation.length())
-            joy.orientation = orientation.angle();
+            joy.orientation = static_cast<float>(orientation.angle());
         command.w = joy.orientation + joy.orientationOffset;
     } else {
         if (0.9 < fabs(orientationX));
@@ -250,8 +269,8 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     btn = Xbox360Controller::RightBumper;
     if(getVal(msg.buttons, xbox360mapping.at(btn)) > 0) {
         if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0) {
-            command.kicker = true;
-            command.kicker_forced = true;
+            command.kicker = 1;
+            command.kicker_forced = 1;
         }
     }
 
@@ -262,8 +281,8 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     // The RightTriggerVal is a range from -1 to 1, where -1 is fully pressed and 1 is fully unpressed
     if(RightTriggerVal <= -0.9) {
         if(RightTriggerVal_prev > -0.9) {
-            command.chipper = true;
-            command.chipper_forced = true;
+            command.chipper = 1;
+            command.chipper_forced = 1;
         }
     }
     /* ==================== */
@@ -303,8 +322,6 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
         // If speed is above SPEED_MAX
     else if(joy.profile.SPEED_MAX < command.x_vel) { command.x_vel =  joy.profile.SPEED_MAX; }
     /* ================================ */
-
-    joy.previousMsg = *joy.msg;
 
     return command;
 }

@@ -89,7 +89,7 @@ public:
     bool autoPlay = false;
 
     int autoPlayTick = 0;
-    int autoPlayTicks = 20;
+    int autoPlayTicks = 40;
     bool toggleAutoPlay = false;
 };
 

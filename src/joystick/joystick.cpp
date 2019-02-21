@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
                         demoInfo.reserve = !joy.autoPlay;
                         demo_pub.publish(demoInfo);
                         joy.toggleAutoPlay = false;
+                        ROS_INFO_STREAM(joy.input << " : autoPlay " << (joy.autoPlay ? "on" : "off"));
                     }
 
                     if (!joy.autoPlay) {
@@ -74,8 +75,8 @@ int main(int argc, char **argv) {
                         command.use_angle = static_cast<unsigned char>(true);
                         pub.publish(command);
                     }
-                } else
-                    joy.previousMsg = joy.msg;
+                }
+                joy.previousMsg = joy.msg;
             }
         }
         fps.sleep();
