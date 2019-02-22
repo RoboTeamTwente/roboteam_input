@@ -10,6 +10,8 @@
 int joySticks::intSupplier = 0;
 std::array<joySticks, NUM_CONTROLLERS> joys;
 
+bool joySticks::halt = false;
+
 void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr& cmd){
     int size = cmd->status.size();
     for(int i = 0; i < size; i++){
@@ -63,13 +65,24 @@ int main(int argc, char **argv) {
                     if (joy.toggleAutoPlay) {
                         roboteam_msgs::DemoRobot demoInfo;
                         demoInfo.id = joy.robotID;
-                        demoInfo.reserve = !joy.autoPlay;
+                        demoInfo.reserve = static_cast<unsigned char>(!joy.autoPlay);
+                        demoInfo.halt = 0;
                         demo_pub.publish(demoInfo);
                         joy.toggleAutoPlay = false;
                         ROS_INFO_STREAM(joy.input << " : autoPlay " << (joy.autoPlay ? "on" : "off"));
                     }
 
-                    if (!joy.autoPlay) {
+                    if (joy.toggleHalt) {
+                        roboteam_msgs::DemoRobot demoInfo;
+                        demoInfo.id = -1;
+                        demoInfo.reserve = static_cast<unsigned char>(false);
+                        demoInfo.halt = joy.halt ? 1 : 2;
+                        demo_pub.publish(demoInfo);
+                        joy.toggleHalt = false;
+                        ROS_INFO_STREAM(joy.input << " : halt " << (joy.halt ? "on" : "off"));
+                    }
+
+                    if (!joy.autoPlay && !joy.halt) {
                         // Create and publish robot command
                         auto command = makeRobotCommand(joy, *joy.msg, *joy.previousMsg);
                         command.use_angle = static_cast<unsigned char>(true);

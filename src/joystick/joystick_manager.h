@@ -87,10 +87,13 @@ public:
     bool useRelativeControl = true;
     static int intSupplier;
     bool autoPlay = false;
+    static bool halt;
 
     int autoPlayTick = 0;
     int autoPlayTicks = 40;
+
     bool toggleAutoPlay = false;
+    bool toggleHalt = false;
 };
 
 template<typename T> T getVal(const std::vector<T> &values, int index);

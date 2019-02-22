@@ -220,6 +220,14 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
             }
         }
     }
+
+    // Press Guide to toggle pause
+    if (getVal(msg.buttons, xbox360mapping.at(Xbox360Controller::Guide)) > 0) {
+        if (!getVal(previousMsg.buttons, xbox360mapping.at(Xbox360Controller::Guide)) > 0) {
+            joy.halt = !joy.halt;
+            joy.toggleHalt = true;
+        }
+    }
 }
 
 // ==== Make all robot commands and return them ==== //
