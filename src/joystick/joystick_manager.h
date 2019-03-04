@@ -94,6 +94,8 @@ public:
 
     bool toggleAutoPlay = false;
     bool toggleHalt = false;
+
+    int dribbleTicks;
 };
 
 template<typename T> T getVal(const std::vector<T> &values, int index);

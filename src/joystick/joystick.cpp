@@ -62,25 +62,20 @@ int main(int argc, char **argv) {
                 if (joy.previousMsg) {
                     // Handle buttons such as ID and control mode switching, and the geneva drive
                     handleButtons(joy, *joy.msg, *joy.previousMsg);
-                    if (joy.toggleAutoPlay) {
-                        roboteam_msgs::DemoRobot demoInfo;
-                        demoInfo.id = joy.robotID;
-                        demoInfo.reserve = static_cast<unsigned char>(!joy.autoPlay);
-                        demoInfo.halt = 0;
-                        demo_pub.publish(demoInfo);
-                        joy.toggleAutoPlay = false;
-                        ROS_INFO_STREAM(joy.input << " : autoPlay " << (joy.autoPlay ? "on" : "off"));
-                    }
+
+                    // TODO: HACK HACK HACK
+                    roboteam_msgs::DemoRobot demoInfo;
+                    demoInfo.id = joy.robotID;
+                    demoInfo.reserve = static_cast<unsigned char>(!joy.autoPlay);
+                    demoInfo.halt = 0;
 
                     if (joy.toggleHalt) {
-                        roboteam_msgs::DemoRobot demoInfo;
-                        demoInfo.id = -1;
-                        demoInfo.reserve = static_cast<unsigned char>(false);
-                        demoInfo.halt = joy.halt ? 1 : 2;
-                        demo_pub.publish(demoInfo);
+                        demoInfo.halt = joySticks::halt ? 1 : 2;
                         joy.toggleHalt = false;
                         ROS_INFO_STREAM(joy.input << " : halt " << (joy.halt ? "on" : "off"));
                     }
+
+                    demo_pub.publish(demoInfo);
 
                     if (!joy.autoPlay && !joy.halt) {
                         // Create and publish robot command

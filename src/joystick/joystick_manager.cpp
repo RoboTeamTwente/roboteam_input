@@ -54,6 +54,9 @@ void joySticks::setToInput(std::string newInput) {
     // Make new subscriber
     ros::NodeHandle n;
     subscriber = n.subscribe(input, 1, &joySticks::receiveJoyMsg, this);
+
+    toggleAutoPlay = true;
+    toggleHalt = true;
 }
 
 void joySticks::receiveJoyMsg(const sensor_msgs::JoyConstPtr &msg) {
@@ -216,7 +219,7 @@ void handleButtons(joySticks &joy, sensor_msgs::Joy const &msg, sensor_msgs::Joy
             if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0) {
                 joy.autoPlay = !joy.autoPlay;
                 joy.toggleAutoPlay = true;
-                std::cout << "Toggle!" << std::endl;
+                ROS_INFO_STREAM(joy.input << " : autoPlay " << (joy.autoPlay ? "on" : "off"));
             }
         }
     }
@@ -261,7 +264,8 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
         command.w = joy.orientation + joy.orientationOffset;
     } else {
         if (0.9 < fabs(orientationX));
-        joy.orientation += orientationX * joy.profile.ROTATION_MULTIPLIER;
+        double multiplier = joy.dribblerOn? 0.2 : 1.0;
+        joy.orientation += orientationX * joy.profile.ROTATION_MULTIPLIER * multiplier;
         if (M_PI < joy.orientation)
             joy.orientation -= 2 * M_PI;
         if (joy.orientation < -M_PI)
@@ -279,6 +283,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
         if (!getVal(previousMsg.buttons, xbox360mapping.at(btn)) > 0) {
             command.kicker = 1;
             command.kicker_forced = 1;
+            joy.dribblerOn = false;
         }
     }
 
@@ -286,14 +291,14 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     double RightTriggerVal = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
     double RightTriggerVal_prev = getVal(previousMsg.axes, xbox360mapping.at(Xbox360Controller::RightTrigger));
 
-    // The RightTriggerVal is a range from -1 to 1, where -1 is fully pressed and 1 is fully unpressed
-    if(RightTriggerVal <= -0.9) {
-        if(RightTriggerVal_prev > -0.9) {
-            command.chipper = 1;
-            command.chipper_forced = 1;
-        }
-    }
-    /* ==================== */
+//    // The RightTriggerVal is a range from -1 to 1, where -1 is fully pressed and 1 is fully unpressed
+//    if(RightTriggerVal <= -0.9) {
+//        if(RightTriggerVal_prev > -0.9) {
+//            command.chipper = 1;
+//            command.chipper_forced = 1;
+//        }
+//    }
+//    /* ==================== */
 
     // ==== Set kicker velocity
     if(command.kicker || command.chipper) {
