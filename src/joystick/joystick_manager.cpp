@@ -200,10 +200,10 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     driveVector.y = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
     if(joy.useRelativeControl){
         driveVector = driveVector.rotate(joy.orientation);
-        command.use_global_ref = false;
+        //command.use_global_ref = false;
     }else{
         driveVector = driveVector.rotate((joy.orientationOffset));
-        command.use_global_ref = true;
+        //command.use_global_ref = true;
     }
     command.x_vel = joy.profile.SPEED_MAX * driveVector.x;
     command.y_vel = joy.profile.SPEED_MAX * driveVector.y;
