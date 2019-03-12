@@ -1,6 +1,6 @@
 #include "joystick_manager.h"
 
-std::array<joystick_profile, NUM_JOYSTICK_PROFILES> joystick_profiles = {profile_default, profile_children, profile_quick, profile_slow};
+std::array<joystick_profile, NUM_JOYSTICK_PROFILES> joystick_profiles = {profile_default, profile_children, profile_quick, profile_slow, profile_newMotorDrivers};
 
 // ==== Initialize joystick ==== //
 void joySticks::init() {
@@ -200,8 +200,10 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     driveVector.y = getVal(msg.axes, xbox360mapping.at(Xbox360Controller::LeftStickX));
     if(joy.useRelativeControl){
         driveVector = driveVector.rotate(joy.orientation);
+        command.use_global_ref = false;
     }else{
         driveVector = driveVector.rotate((joy.orientationOffset));
+        command.use_global_ref = true;
     }
     command.x_vel = joy.profile.SPEED_MAX * driveVector.x;
     command.y_vel = joy.profile.SPEED_MAX * driveVector.y;
@@ -212,7 +214,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
     rtt::Vector2 orientation(orientationY, orientationX);
 
     // This checks which control mode to use (absolute (FIFA) or relative (Call of Duty))
-    if(!joy.useRelativeControl) {
+    if(joy.useRelativeControl) {
         if (0.9 < orientation.length())
             joy.orientation = orientation.angle();
         command.w = joy.orientation + joy.orientationOffset;
