@@ -1,28 +1,18 @@
 #include <string>
-#include <cmath>
-#include <ctime>
-#include <boost/optional.hpp>
-#include <math.h>
-#include <map>
+#include <vector>
+#include <rosconsole/macros_generated.h>
+#include <ros/ros.h>
+#include <roboteam_msgs/RobotCommand.h>
 
-#include "joystick_manager.h"
+/// SETTINGS
+const std::vector<unsigned int> robotIDs = {0, 1, 2, 3};
+const double angle = 0.5*M_PI;
+const float xvel = 0.0;
+const float yvel = 0.0;
 
-int joySticks::intSupplier = 0;
-std::array<joySticks, NUM_CONTROLLERS> joys;
 
-void handleDiagnostics(const diagnostic_msgs::DiagnosticArrayConstPtr& cmd){
-    int size = cmd->status.size();
-    for(int i = 0; i < size; i++){
 
-        std::string target = cmd->status.at(i).values.at(0).value;
-        bool isConnected = cmd->status.at(i).message == "OK";
-
-        for (auto &joy : joys)
-            if("/" + joy.input == target)
-                joy.setControllerConnected(isConnected);
-    }
-}
-
+/// main loop
 int main(int argc, char **argv) {
     ros::init(argc, argv, "joystick_controller");
     ros::NodeHandle n;
@@ -30,45 +20,30 @@ int main(int argc, char **argv) {
     // Publish on robotcommands
     ros::Publisher pub = n.advertise<roboteam_msgs::RobotCommand>("robotcommands", 10);
 
-    // Listen to diagnostics
-    ros::Subscriber sub = n.subscribe<diagnostic_msgs::DiagnosticArray>("diagnostics", 1, &handleDiagnostics);
-
     // Set ROS framerate
     ros::Rate fps(60);
 
-    ROS_INFO_STREAM("Initializing NUM_CONTROLLERS controller(s)");
-    // Loop over all joysticks
-    for (auto &joy : joys) {
-        joy.init();
+    std::string str = "Sending to robot ID's: ";
+    for (unsigned int i : robotIDs) {
+        str += std::to_string(i);
+        str += (i == robotIDs[robotIDs.size()-1]) ? " " : ", ";
     }
-
-    int tickCounter = 0;
+    ROS_INFO_STREAM(str);
 
     while (ros::ok()) {
-        tickCounter++;
-        ROS_INFO_STREAM_THROTTLE(5, "==========| Tick " << tickCounter << " |==========");
-
         // Handle subscriber callbacks
         ros::spinOnce();
 
-        // Loop over all joysticks
-        for (auto &joy : joys) {
-            // If joystick message is received
-            if(joy.msg) {
-                // If previous joystick message is received
-                if (joy.previousMsg) {
-                    // Handle buttons such as ID and control mode switching, and the geneva drive
-                    handleButtons(joy, *joy.msg, *joy.previousMsg);
-                    // Create and publish robot command
-                    auto command = makeRobotCommand(joy, *joy.msg, *joy.previousMsg);
-                    command.use_angle = static_cast<unsigned char>(true);
-                    pub.publish(command);
-                } else
-                    joy.previousMsg = joy.msg;
-            }
+        for (unsigned int i : robotIDs) {
+            roboteam_msgs::RobotCommand command;
+            command.id = i;
+            command.use_angle = 1;
+            command.w = static_cast<float>(angle);
+            command.x_vel = xvel;
+            command.y_vel = yvel;
+            pub.publish(command);
         }
         fps.sleep();
     }
-
     return 0;
 }
