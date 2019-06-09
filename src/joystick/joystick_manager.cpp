@@ -268,7 +268,7 @@ roboteam_msgs::RobotCommand makeRobotCommand(joySticks &joy, sensor_msgs::Joy co
             joy.dribblerOn = !joy.dribblerOn;
         }
     }
-    command.dribbler = joy.dribblerOn;
+    command.dribbler = joy.dribblerOn ? 20 : 0;
 
     // ==== Set geneva drive state
     command.geneva_state = joy.genevaState;
