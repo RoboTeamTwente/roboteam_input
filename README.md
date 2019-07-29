@@ -9,4 +9,5 @@ Just plug them all in. Start the `joysticks.launch` file. Then assign the joysti
 
 ## Installing SDL2 for keyboard controller
 
-`sudo apt-get install libsdl2-dev libsdl2-ttf-dev` should take care of it. If you don't have it installed it should not give an error but just not compile the keyboard controller.
+`sudo apt-get install libsdl2-dev libsdl2-ttf-dev` 
+`sudo apt-get install ros-melodic-joystick-drivers`  should take care of it. If you don't have it installed it should not give an error but just not compile the keyboard controller.
