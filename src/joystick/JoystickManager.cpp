@@ -82,8 +82,8 @@ void JoystickManager::handleJoystickAdded(const SDL_Event& evt) {
     }
 
     int instanceId = SDL_JoystickInstanceID(joystick);
-    Test* t = new Test(instanceId);
-    joystickHandlers.insert({instanceId, t});
+    JoystickHandler* handler = new JoystickHandler();
+    joystickHandlers.insert({instanceId, handler});
     std::cout << "[JoystickManager][handleJoystickAdded] Added joystick with InstanceID " << instanceId << std::endl;
 }
 

@@ -6,5 +6,5 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
 find_package(SDL2 REQUIRED sdl2)
 include_directories(${SDL2_INCLUDE_DIRS} ${SDL2IMAGE_INCLUDE_DIRS})
-add_executable(joystick src/joystick/JoystickManager.cpp)
-target_link_libraries(joystick ${SDL2_LIBRARIES})
+add_executable(joystick src/joystick/JoystickManager.cpp src/joystick/JoystickHandler.cpp src/joystick/JoystickHandler.h roboteam_input)
+target_link_libraries(joystick ${SDL2_LIBRARIES} roboteam_proto roboteam_utils)
