@@ -23,10 +23,8 @@ private:
 
     void init();
     void loop();
-    void handleEvent();
     void handleJoystickAdded(const SDL_Event& evt);
     void handleJoystickRemoved(const SDL_Event& evt);
-    void tick();
 
 };
 
