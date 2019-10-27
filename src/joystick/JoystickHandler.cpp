@@ -5,162 +5,113 @@
 #include "JoystickHandler.h"
 #include <SDL.h>
 
+namespace rtt {
+namespace input {
 
-using namespace std;
 JoystickHandler::JoystickHandler() {
-    cout << "New Joyhandler made" << endl;
-    command.set_chip_kick_forced(true);         //// Not sure of correct position for this. Forced has to be true throughout since we do not use the ball sensor.
+    std::cout << "[JoystickHandler] New JoystickHandler" << std::endl;
 };
 
 void JoystickHandler::tick(){
-//    cout << "tick" << endl;
+    command.mutable_vel()->set_y(-joystickState.stickLeft.x / 32768.0);
+    command.mutable_vel()->set_x(-joystickState.stickLeft.y / 32768.0);
+
+    float dAngle = -joystickState.stickRight.x / 32768.0;
+    robotAngle += dAngle * 0.05;
+    command.set_w(command.w() + dAngle);
+    command.set_w(dAngle*5);
+
+    if (joystickState.bumperRight){
+        joystickState.bumperRight = false;
+        command.set_chip_kick_vel(3.0);
+        command.set_kicker(true);
+        command.set_chip_kick_forced(true);
+    }else{
+        command.set_chip_kick_vel(0.0);
+        command.set_kicker(false);
+        command.set_chip_kick_forced(false);
+    }
+
+    if(joystickState.back){
+        if(joystickState.dpadLeft){
+            joystickState.dpadLeft = false;
+            robotId--;
+        }
+        if(joystickState.dpadRight){
+            joystickState.dpadRight = false;
+            robotId++;
+        }
+    }
 }
 
 
-/*Receives event data and checks the event type. Then calls function to process it either as joystick motion or a button press*/
-void JoystickHandler::handleEvent(const SDL_Event& event) {
+/* Receives event data and checks the event type.
+ * Then calls function to process it either as joystick motion or a button press
+ * */
+void JoystickHandler::handleEvent(SDL_Event& event) {
     switch (event.type) {
         case SDL_JOYAXISMOTION: /* Handle Axis motion*/
             handleJoystickMotion(event);
-        case SDL_JOYBUTTONDOWN:  /* Handle Joystick Button Presses */
+            break;
+        case SDL_JOYBUTTONUP:
             handleJoystickButton(event);
+            break;
+        case SDL_JOYBUTTONDOWN:
+            handleJoystickButton(event);
+            break;
     }
 }
 
-/*Processes the joystick motion*/
-void JoystickHandler::handleJoystickMotion(const SDL_Event &event)
-{
-    if ((event.jaxis.value < -3200) || (event.jaxis.value > 3200))
-    {
-        switch (event.jaxis.axis)
-        {
-            case (0): {handleXMovement(event);      break;}
-            case (1): {handleYMovement(event);      break;}
-            case (3): {handleXRotation(event);      break;}     //// TODO Not satisfied with name but will change.
-            case (4): {handleYRotation(event);      break;}     //// TODO Not satisfied with name but will change.
+/* Processes the joystick motion */
+void JoystickHandler::handleJoystickMotion(SDL_Event &event){
 
-            default:
-                cout << "No correct joystick input" << endl;
-//              case(2)         Left trigger
-//              case(5)         Right trigger
-        }
+    /* Check if values are outside of the deadzone */
+    if (-16000 < event.jaxis.value && event.jaxis.value < 16000) {
+        event.jaxis.value = 0;
     }
-    else
-    {
-        if(event.jaxis.axis == 0) {
-            cout << "x_velocity 0" << endl;
-            command.mutable_vel()->set_x(0);    //// If the axis value is between -3200 and 3200 set velocity back to 0.
-        }
-        if(event.jaxis.axis == 1) {
-            cout << "y_velocity 0" << endl;
-            command.mutable_vel()->set_y(0);    //// If the axis value is between -3200 and 3200 set velocity back to 0.
-        }
-        // TODO something similar with the rotation axis
+
+    switch(event.jaxis.axis){
+        case 0 : joystickState.stickLeft.x = event.jaxis.value; break;
+        case 1 : joystickState.stickLeft.y = event.jaxis.value; break;
+        case 2 : joystickState.triggerLeft = event.jaxis.value; break;
+        case 3 : joystickState.stickRight.x = event.jaxis.value; break;
+        case 4 : joystickState.stickRight.y = event.jaxis.value; break;
+        case 5 : joystickState.triggerRight = event.jaxis.value; break;
     }
+
+    std::cout << joystickState.stickLeft << " ";
+    std::cout << joystickState.stickRight << "  ";
+    std::cout << joystickState.triggerLeft << " " << joystickState.triggerRight;
+    std::cout << std::endl;
 
 }
 
 /* Processes the button press as either a shot, soft shot, chip or dribbler switch*/
-void JoystickHandler::handleJoystickButton(const SDL_Event &event) {
-    switch (event.jbutton.button) {
-        case (0):        {doSlowShot(event);  break;}       //TODO rethink names
-        case (1):        {doHardShot(event);  break;}
-        case (2):        {doChip(event);      break;}
-        case (4):        {useDribbler(event); break;}
-        default:
-            cout << "No correct button input" << endl;
-//          case(3)      Y-Button
-//          case(5)      R1-Button
-//          case(6)      Back-Button
-//          case(7)      Start-Button
-//          case(9)      Left JoyHat
-//          case(10)     Right JoyHat
+void JoystickHandler::handleJoystickButton(SDL_Event &event) {
+//    std::cout << "[JoystickHandler][handleJoystickButton] " << (int) event.jbutton.button << " " << (int)event.jbutton.state << std::endl;
+    bool pressed = (int) event.jbutton.state == 1;
+    switch(event.jbutton.button){
+        case  0 : joystickState.A = pressed; break;
+        case  1 : joystickState.B = pressed; break;
+        case  2 : joystickState.X = pressed; break;
+        case  3 : joystickState.Y = pressed; break;
+        case  4 : joystickState.bumperLeft = pressed; break;
+        case  5 : joystickState.bumperRight = pressed; break;
+        case  6 : joystickState.back = pressed; break;
+        case  7 : joystickState.start = pressed; break;
+        case  8 : joystickState.guide = pressed; break;
+        case  9 : joystickState.stickLeftBtn = pressed; break;
+        case 10 : joystickState.stickRightBtn = pressed; break;
+        case 11 : joystickState.dpadLeft = pressed; break;
+        case 12 : joystickState.dpadRight = pressed; break;
+        case 13 : joystickState.dpadUp = pressed; break;
+        case 14 : joystickState.dpadDown = pressed; break;
     }
 }
-
-
-//// Assigns a horizontal speed to the command depending on deviation from centre.
-void JoystickHandler::handleXMovement(const SDL_Event &event)
-{
-    cout << "left stick horizontal: ";
-    cout << event.jaxis.value << endl;
-    Drive_Angle_Vector.x = event.jaxis.value;
-    cout << Drive_Angle_Vector.normalize() << endl;
-    command.mutable_vel()->set_x(-Drive_Angle_Vector.normalize().x); //// Apparently left and right are reversed.
-}
-
-//// Assigns a vertical speed to the command depending on deviation from centre.
-void JoystickHandler::handleYMovement(const SDL_Event &event) {
-    cout << "left stick vertical: ";
-    cout << event.jaxis.value << endl;
-    Drive_Angle_Vector.y = event.jaxis.value;
-    cout << Drive_Angle_Vector.normalize() << endl;
-    command.mutable_vel()->set_y(Drive_Angle_Vector.normalize().y);
-}
-
-//// Adapts the unit vector on which to project the movement vector in the direction of the right joystick.
-//// Think there is something wrong with reference frames.
-void JoystickHandler::handleXRotation(const SDL_Event &event)
-{
-    cout << "right stick horizontal: ";
-    cout << event.jaxis.value << endl;
-    Drive_Angle_Vector.x = event.jaxis.value;
-    cout << Drive_Angle_Vector.normalize() << endl;
-    Drive_Angle_Vector = Drive_Angle_Vector.rotate(Drive_Angle_Vector.angle());
-}
-
-//// Adapts the unit vector on which to project the movement vector in the direction of the right joystick.
-//// Think there is something wrong with reference frames.
-void JoystickHandler::handleYRotation(const SDL_Event &event)
-{
-    cout << "right stick vertical: ";
-    cout << event.jaxis.value << endl;
-    Drive_Angle_Vector.y = event.jaxis.value;
-    cout << Drive_Angle_Vector.normalize() << endl;
-    Drive_Angle_Vector = Drive_Angle_Vector.rotate(Drive_Angle_Vector.angle());
-}
-
-//// Do a soft shot to possibly play around the other robot.
-void JoystickHandler::doSlowShot(const SDL_Event &event)
-{
-    cout << "A button: ";
-    cout << event.jbutton.state << endl;
-    command.clear_chipper();
-    command.set_kicker(true);
-    command.set_chip_kick_vel(0.1);         //TODO find out values
-    /* Soft shot code goes here */
-};
-
-//// Do a hard shot to for example shoot on goal.
-void JoystickHandler::doHardShot(const SDL_Event &event)
-{
-    cout << "B button: ";
-    cout << event.jbutton.state << endl;
-    command.clear_chipper();
-    command.set_kicker(true);
-    command.set_chip_kick_vel(1);           //TODO find out values
-    /* Hard shot command */
-};
-
-void JoystickHandler::doChip(const SDL_Event &event)
-{
-    cout << "Z button: ";
-    cout << event.jbutton.state << endl;
-    command.clear_kicker();
-    command.set_chipper(true);
-    command.set_chip_kick_vel(0.1);
-    /* Chip command */
-};
-
-//// Turn dribbler on if off and vice versa.
-void JoystickHandler::useDribbler(const SDL_Event &event)
-{
-    cout << "L1 button: ";
-    command.set_dribbler(command.dribbler() == 0);
-    cout << command.dribbler() << endl;
-    /* Turn dribbler on */
-};
 
 roboteam_proto::RobotCommand JoystickHandler::getCommand(){
     return command;
 }
+
+} // namespace input
+} // namespace rtt

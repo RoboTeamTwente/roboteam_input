@@ -9,6 +9,9 @@
 
 using namespace std::chrono;
 
+namespace rtt {
+namespace input {
+
 JoystickManager::JoystickManager() {
     std::cout << "[JoystickManager] New JoystickManager" << std::endl;
     init();
@@ -35,18 +38,20 @@ void JoystickManager::loop() {
 
     steady_clock::time_point tTickNext = steady_clock::now() + milliseconds(TICK_INTERVAL);
 
-// Creates a publisher in order to send robot commands
+    // Creates a publisher in order to send robot commands
     std::unique_ptr<roboteam_proto::Publisher> pub = std::make_unique<roboteam_proto::Publisher>("tcp://127.0.0.1:5556");
 
-    while(true) {
+    while(iTicks < 9999999999999) {
         /* Tick all JoystickHandlers */
         iTicks++;
         int refTick;                                             //  This is used simply for the stop condition
-        for(const auto& joystickHandler : joystickHandlers)
+        for (const auto &joystickHandler : joystickHandlers) {
             joystickHandler.second->tick();
+            pub->send("robotcommands", joystickHandler.second->getCommand().SerializeAsString());
+        }
 
         /* Wait for an event or until it is time for the next tick */
-        int msToNextTick = (int)duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
+        int msToNextTick = (int) duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
         while (SDL_WaitEventTimeout(&event, msToNextTick)) {
             iEvents++;
 
@@ -60,32 +65,16 @@ void JoystickManager::loop() {
                     break;
                 default:
                     joystickHandlers.at(event.jdevice.which)->handleEvent(event);
-                    auto command = joystickHandlers.at(event.jdevice.which)->getCommand();
-                    cout << "Hij komt hier" << endl;
-                    command.set_id(1);
-                    pub->send("robotcommands", command.SerializeAsString());  // TODO look in same roboteam_utils constants file for topic
                     break;
             }
 
             /* Check if it is time for another tick */
-            msToNextTick = (int)duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
-            if(msToNextTick <= 0)
+            msToNextTick = (int) duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
+            if (msToNextTick <= 0)
                 break;
         }
 
         tTickNext += milliseconds(TICK_INTERVAL);
-        std::cout << "[JoystickManager][loop] iTicks=" << iTicks << " iEvents=" << iEvents << std::endl;
-
-        if(event.jbutton.button == 6)
-        {
-            refTick = iTicks;
-            cout << "PRESS START TO QUIT" << endl;
-        }
-        if(iTicks - refTick < 15 && event.jbutton.button == 7)
-        {
-            cout << "GAME TERMINATED" << endl;
-            break;
-        }
     }
 }
 
@@ -119,10 +108,10 @@ void JoystickManager::handleJoystickRemoved(const SDL_Event& evt){
     std::cout << "[JoystickManager][handleJoystickAdded] Removed joystick with InstanceID " << evt.jdevice.which << std::endl;
 }
 
-
-
+}
+}
 
 int main(int argc, char **argv) {
-    JoystickManager manager;
+    rtt::input::JoystickManager manager;
     return 0;
 }

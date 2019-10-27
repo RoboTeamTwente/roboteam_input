@@ -12,13 +12,15 @@
 #include <SDL_joystick.h>
 #include <unistd.h>
 
+namespace rtt {
+namespace input {
 
 class JoystickManager {
 public:
     JoystickManager();
 
 private:
-    const int TICK_INTERVAL = 500;
+    const int TICK_INTERVAL = 50;
     std::map<int, JoystickHandler*> joystickHandlers;
 
     void init();
@@ -28,5 +30,7 @@ private:
 
 };
 
+}
+}
 
 #endif //ROBOTEAM_INPUT_JOYSTICKMANAGER_H
