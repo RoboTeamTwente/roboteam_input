@@ -21,7 +21,7 @@ void JoystickHandler::tick(){
     command.set_w(command.w() + dAngle);
     command.set_w(dAngle*5);
 
-    if (joystickState.bumperRight){
+    if (joystickState.A){
         joystickState.bumperRight = false;
         command.set_chip_kick_vel(3.0);
         command.set_kicker(true);
@@ -33,14 +33,25 @@ void JoystickHandler::tick(){
     }
 
     if(joystickState.back){
-        if(joystickState.dpadLeft){
-            joystickState.dpadLeft = false;
-            robotId--;
+        if(joystickState.bumperLeft){
+            if (robotId >= -1) {
+                joystickState.dpadLeft = false;
+                robotId--;
+                std::cout << "Current robot ID" << std::endl;
+            }
+            else
+                std::cout << "No robots with lower ID available" << std::endl;
         }
-        if(joystickState.dpadRight){
-            joystickState.dpadRight = false;
-            robotId++;
+        if(joystickState.bumperRight){
+            if (robotId <= 6) {
+                joystickState.dpadRight = false;
+                robotId++;
+                std::cout << "Current robot ID" << std::endl;
+            }
+            else
+                std::cout << "No robots with higher ID available" << std::endl;
         }
+        command.set_id(robotId);
     }
 }
 
