@@ -31,6 +31,12 @@ public:
     void handleJoystickButton(SDL_Event &event);
     roboteam_proto::RobotCommand getCommand();
 
+    void setVelocity();
+    void setOrientation();
+    void doKick();
+    void doChip();
+    void toggleDribbler();
+    void changeRobotID();
 };
 
 } // namespace input
