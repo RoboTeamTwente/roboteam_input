@@ -20,7 +20,7 @@ public:
     JoystickManager();
 
 private:
-    const int TICK_INTERVAL = 50;
+    const int TICK_INTERVAL = 20;
     std::map<int, JoystickHandler*> joystickHandlers;
 
     void init();
