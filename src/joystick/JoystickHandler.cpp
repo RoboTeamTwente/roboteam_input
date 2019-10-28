@@ -13,13 +13,20 @@ JoystickHandler::JoystickHandler() {
 };
 
 void JoystickHandler::tick(){
-    command.mutable_vel()->set_y(-joystickState.stickLeft.x / 32768.0);
-    command.mutable_vel()->set_x(-joystickState.stickLeft.y / 32768.0);
 
+    /* Robot angle */
+    command.set_use_angle(true);
     float dAngle = -joystickState.stickRight.x / 32768.0;
-    robotAngle += dAngle * 0.05;
-    command.set_w(command.w() + dAngle);
-    command.set_w(dAngle*5);
+    robotAngle += dAngle * 0.1;
+    while(M_PI < robotAngle) robotAngle -= 2 * M_PI;
+    while(robotAngle < -M_PI) robotAngle += 2 * M_PI;
+    command.set_w(robotAngle);
+
+    /* Robot velocity */
+    rtt::Vector2 driveVector = joystickState.stickLeft.normalize().rotate(-robotAngle);
+    command.mutable_vel()->set_y(-driveVector.x);
+    command.mutable_vel()->set_x(-driveVector.y);
+
 
     if (joystickState.A){
         joystickState.bumperRight = false;
@@ -34,21 +41,19 @@ void JoystickHandler::tick(){
 
     if(joystickState.back){
         if(joystickState.bumperLeft){
-            if (robotId >= -1) {
-                joystickState.dpadLeft = false;
+            if (0 < robotId) {
+                joystickState.bumperLeft = false;
                 robotId--;
-                std::cout << "Current robot ID" << std::endl;
-            }
-            else
+                std::cout << "Current robot ID " << robotId << std::endl;
+            }else
                 std::cout << "No robots with lower ID available" << std::endl;
         }
         if(joystickState.bumperRight){
-            if (robotId <= 6) {
-                joystickState.dpadRight = false;
+            if (robotId < 15) {
+                joystickState.bumperRight = false;
                 robotId++;
-                std::cout << "Current robot ID" << std::endl;
-            }
-            else
+                std::cout << "Current robot ID " << robotId << std::endl;
+            }else
                 std::cout << "No robots with higher ID available" << std::endl;
         }
         command.set_id(robotId);
@@ -90,10 +95,10 @@ void JoystickHandler::handleJoystickMotion(SDL_Event &event){
         case 5 : joystickState.triggerRight = event.jaxis.value; break;
     }
 
-    std::cout << joystickState.stickLeft << " ";
-    std::cout << joystickState.stickRight << "  ";
-    std::cout << joystickState.triggerLeft << " " << joystickState.triggerRight;
-    std::cout << std::endl;
+//    std::cout << joystickState.stickLeft << " ";
+//    std::cout << joystickState.stickRight << "  ";
+//    std::cout << joystickState.triggerLeft << " " << joystickState.triggerRight;
+//    std::cout << std::endl;
 
 }
 
