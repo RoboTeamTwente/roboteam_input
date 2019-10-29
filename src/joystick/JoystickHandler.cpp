@@ -17,8 +17,17 @@ namespace rtt {
             setOrientation();
             doKick();
             doChip();
-            toggleDribbler();
             changeRobotID();
+            toggleDribbler();
+
+            std::cout << command.id();
+            std::cout << " vel=" << command.vel();
+            std::cout << " w=" << command.w();
+            std::cout << " use_angle=" << command.use_angle();
+            std::cout << std::endl;
+
+//            std::cout << "\n\n" << std::endl;
+//            command.PrintDebugString();
         }
 
 /* Receives event data and checks the event type.
@@ -89,65 +98,67 @@ namespace rtt {
                     if (0 < robotId) {
                         joystickState.dpadLeft = false;
                         robotId--;
-                        std::cout << "Current robot ID" << std::endl;
+                        std::cout << "[JoystickHandler][changeRobotId] Switched to robot " << robotId << std::endl;
                     }
                     else
-                        std::cout << "No robots with lower ID available" << std::endl;
+                        std::cout << "[JoystickHandler][changeRobotId] No robots with lower ID available" << std::endl;
                 }
                 if(joystickState.bumperRight){
                     if (robotId < 16) {
                         joystickState.dpadRight = false;
                         robotId++;
-                        std::cout << "Current robot ID" << std::endl;
+                        std::cout << "[JoystickHandler][changeRobotId] Switched to robot " << robotId << std::endl;
                     }
                     else
-                        std::cout << "No robots with higher ID available" << std::endl;
+                        std::cout << "[JoystickHandler][changeRobotId] No robots with higher ID available" << std::endl;
                 }
                 command.set_id(robotId);
             }
         }
 
         void JoystickHandler::doKick(){
-            command.set_kicker(true);
             command.set_chip_kick_forced(true);
             if (joystickState.A) {
-                command.set_chip_kick_vel(3.0);
+                command.set_kicker(true);
+                command.set_chip_kick_vel(4.0);
                 joystickState.A = false;
             }
             else if (joystickState.B) {
+                command.set_kicker(true);
                 command.set_chip_kick_vel(8.0);
                 joystickState.B = false;
             }
             else {
-                command.set_chip_kick_vel(0.0);
                 command.set_kicker(false);
-                command.set_chip_kick_forced(false);
             }
         }
 
         void JoystickHandler::doChip(){
-            command.set_chipper(true);
             command.set_chip_kick_forced(true);
             if (joystickState.Y) {
+                command.set_chipper(true);
                 command.set_chip_kick_vel(4.0);
                 joystickState.Y = false;
             }
             else if (joystickState.X) {
+                command.set_chipper(true);
                 command.set_chip_kick_vel(8.0);
                 joystickState.X = false;
             }
             else {
-                command.set_chip_kick_vel(0.0);
-                command.set_kicker(false);
-                command.set_chip_kick_forced(false);
+                command.set_chipper(false);
             }
-
         }
-        void JoystickHandler::toggleDribbler(){
-            if (joystickState.bumperLeft){
-                command.set_dribbler(!command.dribbler());
-            }
 
+        void JoystickHandler::toggleDribbler(){
+            if (joystickState.bumperRight) {
+                joystickState.bumperRight = false;
+                if(0 < command.dribbler()) {
+                    command.set_dribbler(0);
+                }else{
+                    command.set_dribbler(16);
+                }
+            }
         }
         void JoystickHandler::setOrientation() {
             /* Robot angle */
