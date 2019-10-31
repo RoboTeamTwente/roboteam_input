@@ -123,8 +123,9 @@ namespace rtt {
         }
 
         void JoystickHandler::updateVelocity(){
-            /* Robot velocity */
-            rtt::Vector2 driveVector = joystickState.stickLeft.normalize().rotate(-robotAngle);
+            /* Robot velocity, value 1 for mutable vel is achieved by dividing by 32768 instead of 22000*/
+
+            rtt::Vector2 driveVector = joystickState.stickLeft.rotate(-robotAngle)/22000;
             command.mutable_vel()->set_y(-driveVector.x);
             command.mutable_vel()->set_x(-driveVector.y);
         }
@@ -133,7 +134,7 @@ namespace rtt {
 /* Processes the joystick motion */
         void JoystickHandler::handleJoystickMotion(SDL_Event &event){
             /* Check if values are outside of the deadzone */
-            if (-16000 < event.jaxis.value && event.jaxis.value < 16000) {
+            if (-6000 < event.jaxis.value && event.jaxis.value < 6000) {
                 event.jaxis.value = 0;
             }
             switch(event.jaxis.axis){
