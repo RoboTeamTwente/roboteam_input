@@ -31,8 +31,8 @@ public:
     void handleJoystickButton(SDL_Event &event);
     roboteam_proto::RobotCommand getCommand();
 
-    void setVelocity();
-    void setOrientation();
+    void updateVelocity();
+    void updateOrientation();
     void doKick();
     void doChip();
     void toggleDribbler();

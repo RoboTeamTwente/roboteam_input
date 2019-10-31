@@ -10,11 +10,12 @@ namespace rtt {
 
         JoystickHandler::JoystickHandler() {
             std::cout << "[JoystickHandler] New JoystickHandler" << std::endl;
+            command.set_chip_kick_forced(true);
         };
 
         void JoystickHandler::tick(){
-            setVelocity();
-            setOrientation();
+            updateVelocity();
+            updateOrientation();
             doKick();
             doChip();
             changeRobotID();
@@ -26,69 +27,22 @@ namespace rtt {
             std::cout << " use_angle=" << command.use_angle();
             std::cout << std::endl;
 
-//            std::cout << "\n\n" << std::endl;
-//            command.PrintDebugString();
         }
 
-/* Receives event data and checks the event type.
- * Then calls function to process it either as joystick motion or a button press
+/** Receives event data and checks the event type.
+ * Then updates internal state accordingly.
  * */
         void JoystickHandler::handleEvent(SDL_Event& event) {
             switch (event.type) {
                 case SDL_JOYAXISMOTION: /* Handle Axis motion*/
                     handleJoystickMotion(event);
                     break;
-                case SDL_JOYBUTTONUP:
+                case SDL_JOYBUTTONUP: /* Handle Button unpressing*/
                     handleJoystickButton(event);
                     break;
-                case SDL_JOYBUTTONDOWN:
+                case SDL_JOYBUTTONDOWN: /* Handle Button pressing*/
                     handleJoystickButton(event);
                     break;
-            }
-        }
-
-/* Processes the joystick motion */
-        void JoystickHandler::handleJoystickMotion(SDL_Event &event){
-            /* Check if values are outside of the deadzone */
-            if (-16000 < event.jaxis.value && event.jaxis.value < 16000) {
-                event.jaxis.value = 0;
-            }
-
-            switch(event.jaxis.axis){
-                case 0 : joystickState.stickLeft.x = event.jaxis.value; break;
-                case 1 : joystickState.stickLeft.y = event.jaxis.value; break;
-                case 2 : joystickState.triggerLeft = event.jaxis.value; break;
-                case 3 : joystickState.stickRight.x = event.jaxis.value; break;
-                case 4 : joystickState.stickRight.y = event.jaxis.value; break;
-                case 5 : joystickState.triggerRight = event.jaxis.value; break;
-            }
-
-//    std::cout << joystickState.stickLeft << " ";
-//    std::cout << joystickState.stickRight << "  ";
-//    std::cout << joystickState.triggerLeft << " " << joystickState.triggerRight;
-//    std::cout << std::endl;
-        }
-
-/* Maps butt*/
-        void JoystickHandler::handleJoystickButton(SDL_Event &event) {
-//    std::cout << "[JoystickHandler][handleJoystickButton] " << (int) event.jbutton.button << " " << (int)event.jbutton.state << std::endl;
-            bool pressed = (int) event.jbutton.state == 1;
-            switch(event.jbutton.button){
-                case  0 : joystickState.A = pressed; break;
-                case  1 : joystickState.B = pressed; break;
-                case  2 : joystickState.X = pressed; break;
-                case  3 : joystickState.Y = pressed; break;
-                case  4 : joystickState.bumperLeft = pressed; break;
-                case  5 : joystickState.bumperRight = pressed; break;
-                case  6 : joystickState.back = pressed; break;
-                case  7 : joystickState.start = pressed; break;
-                case  8 : joystickState.guide = pressed; break;
-                case  9 : joystickState.stickLeftBtn = pressed; break;
-                case 10 : joystickState.stickRightBtn = pressed; break;
-                case 11 : joystickState.dpadLeft = pressed; break;
-                case 12 : joystickState.dpadRight = pressed; break;
-                case 13 : joystickState.dpadUp = pressed; break;
-                case 14 : joystickState.dpadDown = pressed; break;
             }
         }
 
@@ -117,7 +71,6 @@ namespace rtt {
         }
 
         void JoystickHandler::doKick(){
-            command.set_chip_kick_forced(true);
             if (joystickState.A) {
                 command.set_kicker(true);
                 command.set_chip_kick_vel(4.0);
@@ -134,7 +87,6 @@ namespace rtt {
         }
 
         void JoystickHandler::doChip(){
-            command.set_chip_kick_forced(true);
             if (joystickState.Y) {
                 command.set_chipper(true);
                 command.set_chip_kick_vel(4.0);
@@ -160,7 +112,7 @@ namespace rtt {
                 }
             }
         }
-        void JoystickHandler::setOrientation() {
+        void JoystickHandler::updateOrientation() {
             /* Robot angle */
             command.set_use_angle(true);
             float dAngle = -joystickState.stickRight.x / 32768.0;
@@ -170,7 +122,7 @@ namespace rtt {
             command.set_w(robotAngle);
         }
 
-        void JoystickHandler::setVelocity(){
+        void JoystickHandler::updateVelocity(){
             /* Robot velocity */
             rtt::Vector2 driveVector = joystickState.stickLeft.normalize().rotate(-robotAngle);
             command.mutable_vel()->set_y(-driveVector.x);
@@ -178,10 +130,51 @@ namespace rtt {
         }
 
 
+/* Processes the joystick motion */
+        void JoystickHandler::handleJoystickMotion(SDL_Event &event){
+            /* Check if values are outside of the deadzone */
+            if (-16000 < event.jaxis.value && event.jaxis.value < 16000) {
+                event.jaxis.value = 0;
+            }
+            switch(event.jaxis.axis){
+                case 0 : joystickState.stickLeft.x = event.jaxis.value; break;
+                case 1 : joystickState.stickLeft.y = event.jaxis.value; break;
+                case 2 : joystickState.triggerLeft = event.jaxis.value; break;
+                case 3 : joystickState.stickRight.x = event.jaxis.value; break;
+                case 4 : joystickState.stickRight.y = event.jaxis.value; break;
+                case 5 : joystickState.triggerRight = event.jaxis.value; break;
+            }
+        }
+
+/* Maps buttons*/
+        void JoystickHandler::handleJoystickButton(SDL_Event &event) {
+            bool button_State = (int) event.jbutton.state == 1;
+            switch(event.jbutton.button){
+                case  0 : joystickState.A = button_State; break;
+                case  1 : joystickState.B = button_State; break;
+                case  2 : joystickState.X = button_State; break;
+                case  3 : joystickState.Y = button_State; break;
+                case  4 : joystickState.bumperLeft = button_State; break;
+                case  5 : joystickState.bumperRight = button_State; break;
+                case  6 : joystickState.back = button_State; break;
+                case  7 : joystickState.start = button_State; break;
+                case  8 : joystickState.guide = button_State; break;
+                case  9 : joystickState.stickLeftBtn = button_State; break;
+                case 10 : joystickState.stickRightBtn = button_State; break;
+                case 11 : joystickState.dpadLeft = button_State; break;
+                case 12 : joystickState.dpadRight = button_State; break;
+                case 13 : joystickState.dpadUp = button_State; break;
+                case 14 : joystickState.dpadDown = button_State; break;
+            }
+        }
 
         roboteam_proto::RobotCommand JoystickHandler::getCommand(){
             return command;
         }
+
+
+
+
 
     } // namespace input
 } // namespace rtt

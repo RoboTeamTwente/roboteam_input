@@ -43,7 +43,7 @@ namespace rtt {
             while(iTicks < 9999999999999) {
                 /* Tick all JoystickHandlers */
                 iTicks++;
-                int refTick;                                             //  This is used simply for the stop condition
+
                 for (const auto &joystickHandler : joystickHandlers) {
                     joystickHandler.second->tick();
                     pub->send("robotcommands", joystickHandler.second->getCommand().SerializeAsString());
