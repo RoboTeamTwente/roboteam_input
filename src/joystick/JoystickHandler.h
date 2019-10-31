@@ -37,6 +37,7 @@ public:
     void doChip();
     void toggleDribbler();
     void changeRobotID();
+    JoystickState getJoystickState();
 };
 
 } // namespace input

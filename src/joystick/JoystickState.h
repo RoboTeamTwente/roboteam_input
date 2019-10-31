@@ -24,7 +24,7 @@ public:
     bool Y = false;
     bool start = false;
     bool back = false;
-    bool guide = false;
+    bool XBOX = false;
     bool stickLeftBtn = false;
     bool stickRightBtn = false;
     bool dpadLeft = false;

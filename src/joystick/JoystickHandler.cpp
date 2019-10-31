@@ -159,7 +159,7 @@ namespace rtt {
                 case  5 : joystickState.bumperRight = button_State; break;
                 case  6 : joystickState.back = button_State; break;
                 case  7 : joystickState.start = button_State; break;
-                case  8 : joystickState.guide = button_State; break;
+                case  8 : joystickState.XBOX = button_State; break;
                 case  9 : joystickState.stickLeftBtn = button_State; break;
                 case 10 : joystickState.stickRightBtn = button_State; break;
                 case 11 : joystickState.dpadLeft = button_State; break;
@@ -171,6 +171,9 @@ namespace rtt {
 
         roboteam_proto::RobotCommand JoystickHandler::getCommand(){
             return command;
+        }
+        JoystickState JoystickHandler::getJoystickState(){
+            return joystickState;
         }
 
 
