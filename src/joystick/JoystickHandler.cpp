@@ -21,11 +21,11 @@ namespace rtt {
             changeRobotID();
             toggleDribbler();
 
-            std::cout << command.id();
-            std::cout << " vel=" << command.vel();
-            std::cout << " w=" << command.w();
-            std::cout << " use_angle=" << command.use_angle();
-            std::cout << std::endl;
+//            std::cout << command.id();
+//            std::cout << " vel=" << command.vel();
+//            std::cout << " w=" << command.w();
+//            std::cout << " use_angle=" << command.use_angle();
+//            std::cout << std::endl;
 
         }
 
