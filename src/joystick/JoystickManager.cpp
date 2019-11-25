@@ -3,22 +3,25 @@
 #include <thread>
 #include <SDL.h>
 #include <SDL_joystick.h>
-#include "roboteam_proto/Publisher.h"
-#include "JoystickManager.h"
+
+#include "joystick/JoystickManager.h"
+#include "../../../roboteam_ai/include/roboteam_ai/io/IOManager.h"
 
 using namespace std::chrono;
 
 namespace rtt {
 namespace input {
 
-// TODO Check if these can be non-static
-std::mutex JoystickManager::runningLock;
-std::mutex JoystickManager::activeLock;
+JoystickManager::JoystickManager(rtt::ai::io::IOManager * ioManager) : ioManager(ioManager){
+    std::cout << "[JoystickManager] New JoystickManager using IOManager" << std::endl;
+    useIoManager = true;
+}
 
-JoystickManager::JoystickManager(){
-    std::cout << "[JoystickManager] New JoystickManager" << std::endl;
+JoystickManager::JoystickManager() {
     // Create publisher to send robot commands
-    pub = std::make_unique<roboteam_proto::Publisher>("tcp://127.0.0.1:5556");
+    std::cout << "[JoystickManager] New JoystickManager standalone" << std::endl;
+    pub = std::make_unique<proto::Publisher<proto::RobotCommand>>(proto::ROBOT_COMMANDS_PRIMARY_CHANNEL);
+    useIoManager = false;
 }
 
 /** Calls the initialization and starts the loop */
@@ -119,8 +122,11 @@ void JoystickManager::loop() {
             iEvents++;
 
             /* PANIC BUTTON! STOP EVERYTHING! */
-            if (joystickHandlers.at(event.jdevice.which)->getJoystickState().XBOX)
+            if (joystickHandlers.at(event.jdevice.which)->getJoystickState().XBOX) {
+                std::cout << "[JoystickManager][loop] PANIC BUTTON PRESSED!!!" << std::endl;
+                std::cerr << "[JoystickManager][loop] PANIC BUTTON PRESSED!!!" << std::endl;
                 std::terminate();
+            }
 
             /* Check if there is time for another event, of if it is time for the next tick */
             msToNextTick = (int) duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
@@ -135,7 +141,10 @@ void JoystickManager::loop() {
 void JoystickManager::tickJoystickHandlers(){
     for (const auto &joystickHandler : joystickHandlers) {
         joystickHandler.second->tick();
-        pub->send("robotcommands", joystickHandler.second->getCommand().SerializeAsString());
+//        if(useIoManager)
+//            ioManager->publishRobotCommand(joystickHandler.second->getCommand());
+//        else
+        pub->send(joystickHandler.second->getCommand());
     }
 }
 
@@ -157,7 +166,7 @@ void JoystickManager::handleEvent(SDL_Event& event){
 
 /** Takes an SDL_Event and adds a new JoystickHandler to the map of JoystickHandlers */
 void JoystickManager::handleJoystickAdded(const SDL_Event& event) {
-    std::cout << "[JoystickManager][handleJoystickAdded] Adding joystick " << event.jdevice.which << std::endl;
+//    std::cout << "[JoystickManager][handleJoystickAdded] Adding joystick " << event.jdevice.which << std::endl;
 
     SDL_Joystick* joystick = SDL_JoystickOpen(event.jdevice.which);
     if(!joystick){
@@ -173,10 +182,10 @@ void JoystickManager::handleJoystickAdded(const SDL_Event& event) {
 
 /** Takes an SDL_Event and deletes and removes the correct JoystickHandler from the map of JoystickHandlers */
 void JoystickManager::handleJoystickRemoved(const SDL_Event& event){
-    std::cout << "[JoystickManager][handleJoystickRemoved] Removing joystick " << event.jdevice.which << std::endl;
+//    std::cout << "[JoystickManager][handleJoystickRemoved] Removing joystick " << event.jdevice.which << std::endl;
     delete joystickHandlers.at(event.jdevice.which);
     joystickHandlers.erase(event.jdevice.which);
-    std::cout << "[JoystickManager][handleJoystickAdded] Removed joystick with InstanceID " << event.jdevice.which << std::endl;
+    std::cout << "[JoystickManager][handleJoystickRemoved] Removed joystick with InstanceID " << event.jdevice.which << std::endl;
 }
 
 } // namespace input
@@ -212,7 +221,6 @@ int main(int argc, char **argv) {
     // Wait for manager to finish
     joyThread.join();
     std::cout << "[JoystickManager.cpp][Main] stopping" << std::endl;
-
 
     return 0;
 }

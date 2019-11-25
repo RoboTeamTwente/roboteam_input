@@ -9,16 +9,20 @@
 #include <map>
 #include <unistd.h>
 #include <mutex>
-#include <SDL.h>
-#include <SDL_joystick.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_joystick.h>
 #include "JoystickHandler.h"
+#include "../../../../roboteam_ai/include/roboteam_ai/io/IOManager.h"
+#include "roboteam_proto/Publisher.h"
+
 
 namespace rtt {
 namespace input {
 
 class JoystickManager {
 public:
-    JoystickManager();
+    explicit JoystickManager(ai::io::IOManager* ioManager);  // Used to start up JoystickManager via roboteam_ai interface
+    JoystickManager();  // Used to start up JoystickManager standalone
     bool run();
     void activate();
     void deactivate();
@@ -29,13 +33,16 @@ private:
     std::map<int, JoystickHandler*> joystickHandlers;
 
     // TODO Check if these can be non-static
-    static std::mutex runningLock;
-    static std::mutex activeLock;
+    std::mutex runningLock;
+    std::mutex activeLock;
     // Indicates whether the loop should stop
     bool running = true;
     // Indicates whether packets should be handled and joystickHandlers ticked
     bool active = true;
-    std::unique_ptr<roboteam_proto::Publisher> pub;
+
+    bool useIoManager = false; // Indicates whether to use the ioManager or publisher
+    ai::io::IOManager * ioManager = nullptr; // Used when given by eg roboteam_ai
+    std::unique_ptr<proto::Publisher<proto::RobotCommand>> pub; // Used when standalone
 
     bool init();
     void loop();

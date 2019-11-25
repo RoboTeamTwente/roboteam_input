@@ -2,7 +2,8 @@
 // Created by luukkn on 23-10-19.
 //
 #include <iostream>
-#include "JoystickHandler.h"
+//#include "../../include/roboteam_input/joystick/JoystickHandler.h"
+#include "joystick/JoystickHandler.h"
 #include <SDL.h>
 
 namespace rtt {
@@ -125,7 +126,7 @@ namespace rtt {
         void JoystickHandler::updateVelocity(){
             /* Robot velocity, value 1 for mutable vel is achieved by dividing by 32768 instead of 22000*/
 
-            rtt::Vector2 driveVector = joystickState.stickLeft.rotate(-robotAngle)/22000;
+            rtt::Vector2 driveVector = joystickState.stickLeft.rotate(-robotAngle)/30000;
             command.mutable_vel()->set_y(-driveVector.x);
             command.mutable_vel()->set_x(-driveVector.y);
         }
@@ -169,7 +170,7 @@ namespace rtt {
             }
         }
 
-        roboteam_proto::RobotCommand JoystickHandler::getCommand(){
+        proto::RobotCommand JoystickHandler::getCommand(){
             return command;
         }
         JoystickState JoystickHandler::getJoystickState(){
