@@ -8,19 +8,21 @@
 
 namespace rtt {
     namespace input {
-
         JoystickHandler::JoystickHandler() {
             std::cout << "[JoystickHandler] New JoystickHandler" << std::endl;
             command.set_chip_kick_forced(true);
         };
 
         void JoystickHandler::tick(){
+            notPressedL = true;
+            notPressedR = true;
             updateVelocity();
             updateOrientation();
             doKick();
             doChip();
             changeRobotID();
             toggleDribbler();
+            tuneDribbler();
 
 //            std::cout << command.id();
 //            std::cout << " vel=" << command.vel();
@@ -102,14 +104,26 @@ namespace rtt {
                 command.set_chipper(false);
             }
         }
+        void JoystickHandler::tuneDribbler(){
 
+            if (joystickState.triggerLeft > 32766 && notPressedL){
+                dribbler_vel -= 1;
+                command.set_dribbler(dribbler_vel);
+                notPressedL = false;
+            }
+            if(joystickState.triggerRight > 32766 && notPressedR){
+                dribbler_vel += 1;
+                command.set_dribbler(dribbler_vel);
+                notPressedR = false;
+            }
+        }
         void JoystickHandler::toggleDribbler(){
             if (joystickState.bumperRight) {
                 joystickState.bumperRight = false;
                 if(0 < command.dribbler()) {
                     command.set_dribbler(0);
                 }else{
-                    command.set_dribbler(16);
+                    command.set_dribbler(10);
                 }
             }
         }
