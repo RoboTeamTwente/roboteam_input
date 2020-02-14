@@ -2,11 +2,11 @@
  * This test checks for all possible keyboard inputs if the robotcommand is correct.
  */
 
+#include <SDL.h>
 #include <gtest/gtest.h>
 #include <keyboard/keyboard_manager.h>
-#include <SDL.h>
 
-void simulateKeyPress(KeyboardManager * keyboard, Uint32 type, SDL_Keycode key, Uint8 repeat = 0, int amountOfPresses = 1) {
+void simulateKeyPress(KeyboardManager* keyboard, Uint32 type, SDL_Keycode key, Uint8 repeat = 0, int amountOfPresses = 1) {
     for (int i = 0; i < amountOfPresses; i++) {
         SDL_Event test_event;
         test_event.type = type;
@@ -16,7 +16,7 @@ void simulateKeyPress(KeyboardManager * keyboard, Uint32 type, SDL_Keycode key, 
     }
 }
 
-roboteam_msgs::RobotCommand getCommandForKeyPress(KeyboardManager * keyboard, Uint32 type, SDL_Keycode key, Uint8 repeat = 0, int amountOfPresses = 1) {
+roboteam_msgs::RobotCommand getCommandForKeyPress(KeyboardManager* keyboard, Uint32 type, SDL_Keycode key, Uint8 repeat = 0, int amountOfPresses = 1) {
     simulateKeyPress(keyboard, type, key, repeat, amountOfPresses);
     return keyboard->GetRobotCommand();
 }
@@ -108,7 +108,7 @@ TEST(KeyboardTest, It_turns_geneva) {
 
     // turn left
     for (int i = 1; i <= 5; i++) {
-        simulateKeyPress(&keyboard, SDL_KEYUP, constants::KEY_GENEVA_LEFT); // KEYUP must not make a difference
+        simulateKeyPress(&keyboard, SDL_KEYUP, constants::KEY_GENEVA_LEFT);  // KEYUP must not make a difference
         cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_GENEVA_LEFT);
         EXPECT_EQ(cmd.geneva_state, std::max(InitialGenevaState - i, 1));
     }
@@ -116,7 +116,7 @@ TEST(KeyboardTest, It_turns_geneva) {
     // turn right
     InitialGenevaState = keyboard.GetRobotCommand().geneva_state;
     for (int i = 1; i <= 5; i++) {
-        simulateKeyPress(&keyboard, SDL_KEYUP, constants::KEY_GENEVA_RIGHT); // KEYUP must not make a difference
+        simulateKeyPress(&keyboard, SDL_KEYUP, constants::KEY_GENEVA_RIGHT);  // KEYUP must not make a difference
         cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_GENEVA_RIGHT);
         EXPECT_EQ(cmd.geneva_state, std::min(InitialGenevaState + i, 5));
     }
@@ -133,12 +133,11 @@ TEST(KeyboardTest, It_turns_geneva) {
     EXPECT_EQ(keyboard.GetRobotCommand().geneva_state, InitialGenevaState);
 }
 
-
 TEST(KeyboardTest, It_rotates_robot) {
     KeyboardManager keyboard;
     roboteam_msgs::RobotCommand cmd;
 
-    float oldAngle =  keyboard.GetRobotCommand().w;
+    float oldAngle = keyboard.GetRobotCommand().w;
     cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, SDLK_LEFT);
     EXPECT_TRUE(cmd.use_angle && cmd.w > oldAngle);
     float angleDifference = cmd.w - oldAngle;
@@ -160,8 +159,8 @@ TEST(KeyboardTest, It_rotates_robot) {
     // Test limits
     for (int i = 0; i < 200; i++) {
         cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, SDLK_LEFT, 1);
-        EXPECT_LT(cmd.w, 16*M_PI);
-        EXPECT_GT(cmd.w, -16*M_PI);
+        EXPECT_LT(cmd.w, 16 * M_PI);
+        EXPECT_GT(cmd.w, -16 * M_PI);
     }
 
     // stop rotating on keyup
@@ -193,13 +192,9 @@ TEST(KeyboardTest, It_drives_forward_and_backward) {
     // test limits
     getCommandForKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_INCREASE_VEL, 0, 100);
     cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, SDLK_DOWN);
-    EXPECT_NEAR(std::abs(cmd.x_vel), constants::MAX_ROBOT_VELOCITY, 0.5); // TODO make this step size
+    EXPECT_NEAR(std::abs(cmd.x_vel), constants::MAX_ROBOT_VELOCITY, 0.5);  // TODO make this step size
 
     simulateKeyPress(&keyboard, SDL_KEYDOWN, constants::KEY_DECREASE_VEL, 0, 100);
     cmd = getCommandForKeyPress(&keyboard, SDL_KEYDOWN, SDLK_DOWN);
     EXPECT_EQ(std::abs(cmd.x_vel), constants::MIN_ROBOT_VELOCITY);
 }
-
-
-
-

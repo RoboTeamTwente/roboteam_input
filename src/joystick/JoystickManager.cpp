@@ -1,18 +1,18 @@
-#include <iostream>
-#include <chrono>
-#include <thread>
 #include <SDL.h>
 #include <SDL_joystick.h>
+#include <chrono>
+#include <iostream>
+#include <thread>
 
-#include "joystick/JoystickManager.h"
 #include "../../../roboteam_ai/include/roboteam_ai/io/IOManager.h"
+#include "joystick/JoystickManager.h"
 
 using namespace std::chrono;
 
 namespace rtt {
 namespace input {
 
-JoystickManager::JoystickManager(rtt::ai::io::IOManager * ioManager) : ioManager(ioManager){
+JoystickManager::JoystickManager(rtt::ai::io::IOManager* ioManager) : ioManager(ioManager) {
     std::cout << "[JoystickManager] New JoystickManager using IOManager" << std::endl;
     useIoManager = true;
 }
@@ -26,7 +26,7 @@ JoystickManager::JoystickManager() {
 
 /** Calls the initialization and starts the loop */
 bool JoystickManager::run() {
-    if(!init()){
+    if (!init()) {
         std::cout << "[JoystickManager][start] Could not initialize JoystickManager. Exiting.." << std::endl;
         return false;
     }
@@ -41,7 +41,7 @@ bool JoystickManager::run() {
 }
 
 /** Activate the handling of events and ticking of JoystickHandlers */
-void JoystickManager::activate(){
+void JoystickManager::activate() {
     std::lock_guard<std::mutex> lock(activeLock);
     active = true;
     std::cout << "[JoystickManager][activate]" << std::endl;
@@ -55,7 +55,7 @@ void JoystickManager::deactivate() {
 }
 
 /** Stops the loop of JoystickManager */
-void JoystickManager::stop(){
+void JoystickManager::stop() {
     std::lock_guard<std::mutex> lock(runningLock);
     running = false;
     deactivate();
@@ -63,13 +63,13 @@ void JoystickManager::stop(){
 }
 
 /** Checks if the JoystickManager is still running */
-bool JoystickManager::isRunning(){
+bool JoystickManager::isRunning() {
     std::lock_guard<std::mutex> lock(runningLock);
     return running;
 }
 
 /** Checks if the JoystickManager is still active */
-bool JoystickManager::isActive(){
+bool JoystickManager::isActive() {
     std::lock_guard<std::mutex> lock(activeLock);
     return active;
 }
@@ -77,7 +77,7 @@ bool JoystickManager::isActive(){
 /** Inits SDL */
 bool JoystickManager::init() {
     std::cout << "[JoystickManager][init] Initializing.." << std::endl;
-    if (SDL_InitSubSystem(SDL_INIT_JOYSTICK)){
+    if (SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
         std::cout << "[JoystickManager][init] SDL_INIT_JOYSTICK failed : " << SDL_GetError() << std::endl;
         return false;
     }
@@ -94,12 +94,12 @@ void JoystickManager::loop() {
 
     steady_clock::time_point tTickNext = steady_clock::now();
 
-    while(isRunning()) {
+    while (isRunning()) {
         /* Set the time to the next tick */
         tTickNext += milliseconds(TICK_INTERVAL);
 
         /* If inactive, sleep for TICK_INTERVAL */
-        if(!isActive()){
+        if (!isActive()) {
             usleep(TICK_INTERVAL * 1000);
             continue;
         }
@@ -109,14 +109,13 @@ void JoystickManager::loop() {
         iTicks++;
 
         /* Calculate the milliseconds to the next tick */
-        int msToNextTick = (int) duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
+        int msToNextTick = (int)duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
         /* Ensure that we're waiting for a positive amount of time, else SDL_WaitEventTimeout will halt */
         msToNextTick = std::max(msToNextTick, 1);
 
         // std::cout << "msToNextTick=" << msToNextTick << std::endl;
         /* Wait for an event or until it is time for the next tick */
         while (SDL_WaitEventTimeout(&event, msToNextTick)) {
-
             /* Handle the received event */
             handleEvent(event);
             iEvents++;
@@ -129,47 +128,46 @@ void JoystickManager::loop() {
             }
 
             /* Check if there is time for another event, of if it is time for the next tick */
-            msToNextTick = (int) duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
-            if (msToNextTick <= 0)
-                break;
+            msToNextTick = (int)duration_cast<milliseconds>(tTickNext - steady_clock::now()).count();
+            if (msToNextTick <= 0) break;
         }
     }
     std::cout << "[JoystickManager][loop] Exiting loop" << std::endl;
 }
 
 /** Sends commands from JoystickHandlers */
-void JoystickManager::tickJoystickHandlers(){
-    for (const auto &joystickHandler : joystickHandlers) {
+void JoystickManager::tickJoystickHandlers() {
+    for (const auto& joystickHandler : joystickHandlers) {
         joystickHandler.second->tick();
-//        if(useIoManager)
-//            ioManager->publishRobotCommand(joystickHandler.second->getCommand());
-//        else
+        //        if(useIoManager)
+        //            ioManager->publishRobotCommand(joystickHandler.second->getCommand());
+        //        else
         pub->send(joystickHandler.second->getCommand());
     }
 }
 
 /** Handles events and forwards them if needed */
-void JoystickManager::handleEvent(SDL_Event& event){
+void JoystickManager::handleEvent(SDL_Event& event) {
     /* Catch device events if needed, else forward event to corresponding JoystickHandler */
     switch (event.type) {
-    case SDL_JOYDEVICEADDED:
-        handleJoystickAdded(event);
-        break;
-    case SDL_JOYDEVICEREMOVED:
-        handleJoystickRemoved(event);
-        break;
-    default:
-        joystickHandlers.at(event.jdevice.which)->handleEvent(event);
-        break;
+        case SDL_JOYDEVICEADDED:
+            handleJoystickAdded(event);
+            break;
+        case SDL_JOYDEVICEREMOVED:
+            handleJoystickRemoved(event);
+            break;
+        default:
+            joystickHandlers.at(event.jdevice.which)->handleEvent(event);
+            break;
     }
 }
 
 /** Takes an SDL_Event and adds a new JoystickHandler to the map of JoystickHandlers */
 void JoystickManager::handleJoystickAdded(const SDL_Event& event) {
-//    std::cout << "[JoystickManager][handleJoystickAdded] Adding joystick " << event.jdevice.which << std::endl;
+    //    std::cout << "[JoystickManager][handleJoystickAdded] Adding joystick " << event.jdevice.which << std::endl;
 
     SDL_Joystick* joystick = SDL_JoystickOpen(event.jdevice.which);
-    if(!joystick){
+    if (!joystick) {
         std::cout << "[JoystickManager][handleJoystickAdded] Error! Could not open joystick!" << std::endl;
         return;
     }
@@ -181,42 +179,42 @@ void JoystickManager::handleJoystickAdded(const SDL_Event& event) {
 }
 
 /** Takes an SDL_Event and deletes and removes the correct JoystickHandler from the map of JoystickHandlers */
-void JoystickManager::handleJoystickRemoved(const SDL_Event& event){
-//    std::cout << "[JoystickManager][handleJoystickRemoved] Removing joystick " << event.jdevice.which << std::endl;
+void JoystickManager::handleJoystickRemoved(const SDL_Event& event) {
+    //    std::cout << "[JoystickManager][handleJoystickRemoved] Removing joystick " << event.jdevice.which << std::endl;
     delete joystickHandlers.at(event.jdevice.which);
     joystickHandlers.erase(event.jdevice.which);
     std::cout << "[JoystickManager][handleJoystickRemoved] Removed joystick with InstanceID " << event.jdevice.which << std::endl;
 }
 
-} // namespace input
-} // namespace rtt
+}  // namespace input
+}  // namespace rtt
 
-void startJoystickManager(rtt::input::JoystickManager& manager){
+void startJoystickManager(rtt::input::JoystickManager& manager) {
     std::cout << "[startJoystickManager] Starting JoystickManager in separate thread" << std::endl;
     manager.run();
     std::cout << "[startJoystickManager] Exiting separate thread" << std::endl;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     std::cout << "[JoystickManager.cpp][Main] starting" << std::endl;
     rtt::input::JoystickManager manager;
 
     // Start manager in separate thread
     std::thread joyThread(startJoystickManager, std::ref(manager));
 
-/** Code to test threading */
-//    sleep(5);
-//    std::cout << "[Main] deactivating" << std::endl;
-//    manager.deactivate();
-//    sleep(5);
-//    std::cout << "[Main] activating" << std::endl;
-//    manager.activate();
-//    sleep(5);
-//    std::cout << "[Main] deactivating" << std::endl;
-//    manager.deactivate();
-//    sleep(5);
-//    std::cout << "[Main] stopping manager" << std::endl;
-//    manager.stop();
+    /** Code to test threading */
+    //    sleep(5);
+    //    std::cout << "[Main] deactivating" << std::endl;
+    //    manager.deactivate();
+    //    sleep(5);
+    //    std::cout << "[Main] activating" << std::endl;
+    //    manager.activate();
+    //    sleep(5);
+    //    std::cout << "[Main] deactivating" << std::endl;
+    //    manager.deactivate();
+    //    sleep(5);
+    //    std::cout << "[Main] stopping manager" << std::endl;
+    //    manager.stop();
 
     // Wait for manager to finish
     joyThread.join();
